@@ -75,6 +75,10 @@ fun MainGallery(
                 Button(onClick = { navController.navigate("settings") }, modifier = Modifier.fillMaxWidth(0.6f)) {
                     Text("Settings")
                 }
+
+                Button(onClick = { navController.navigate("componentTest") }, modifier = Modifier.fillMaxWidth(0.6f)) {
+                    Text("Test Components (Haiyang)")
+                }
             }
         }
     }
