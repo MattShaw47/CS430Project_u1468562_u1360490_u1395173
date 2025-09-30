@@ -17,13 +17,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * Defines an image.
- */
-data class Image(val points: List<Point> = emptyList()) {
-    // TODO >> list must be square
-}
-
-/**
  * Defines a single point on an image.
  */
 data class Point(
@@ -41,11 +34,6 @@ enum class BrushType() {
     LINE, CIRCLE, RECTANGLE
 }
 
-
-class DrawingAppViewModel : ViewModel() {
-    // TODO > Add all necessary members to the viewmodel
-    // list of images
-}
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
