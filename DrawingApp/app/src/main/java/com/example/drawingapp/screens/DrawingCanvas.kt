@@ -1,37 +1,332 @@
 package com.example.drawingapp.screens
 
-import android.graphics.Canvas
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.drawingapp.BrushType
 import com.example.drawingapp.DrawingAppViewModel
+import com.example.drawingapp.model.DrawingImage
+import com.example.drawingapp.model.Point
+import com.example.drawingapp.ui.components.ColorPickerDialog
+import com.example.drawingapp.ui.components.ShapePickerDialog
+import com.example.drawingapp.ui.components.SizeSliderDialog
 
 /**
  * Creates the Drawing Canvas.
  * @param navController - manages app navigation.
  * @param viewModel - our current VM state.
- * @param imageID - The index of the currently selected image to edit or -1 if this
- *                  is a new image created.
+ * @param imageIndex - The index of the currently selected image to edit, or null for new image.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DrawingCanvas(
     navController: NavController,
     viewModel: DrawingAppViewModel,
-    imageID: Int? = -1
+    imageIndex: Int? = null
 ) {
-    // TODO > build the drawing canvas UI
-    // explicit check on img ID to make sure that it has been passed correctly
-    Text("in the drawing Canvas. Our image ID is ->> $imageID")
-    Canvas(
-        // TODO
-    )
+    // Current drawing state
+    var currentColor by remember { mutableStateOf(Color.Black) }
+    var currentBrushSize by remember { mutableStateOf(10f) }
+    var currentShape by remember { mutableStateOf(BrushType.CIRCLE) }
 
+    // Dialog visibility states
+    var showColorPicker by remember { mutableStateOf(false) }
+    var showSizePicker by remember { mutableStateOf(false) }
+    var showShapePicker by remember { mutableStateOf(false) }
+
+    // Drawing model
+    val drawingImage = remember(imageIndex) {
+        if (imageIndex != null && imageIndex >= 0) {
+            viewModel.drawings.value.getOrNull(imageIndex) ?: DrawingImage(size = 1024)
+        } else {
+            DrawingImage(size = 1024)
+        }
+    }
+
+    // Current stroke being drawn - using mutableStateListOf for better performance
+    val currentStroke = remember { mutableStateListOf<Point>() }
+
+    // Force recomposition when strokes change
+    var redrawTrigger by remember { mutableStateOf(0) }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(if (imageIndex != null) "Edit Drawing #$imageIndex" else "New Drawing")
+                },
+                navigationIcon = {
+                    TextButton(onClick = { navController.popBackStack() }) {
+                        Text("Back")
+                    }
+                },
+                actions = {
+                    TextButton(
+                        onClick = {
+                            drawingImage.save()
+                            if (imageIndex == null) {
+                                viewModel.addDrawing(drawingImage)
+                            }
+                            navController.popBackStack()
+                        }
+                    ) {
+                        Text("Save")
+                    }
+                }
+            )
+        },
+        bottomBar = {
+            DrawingToolbar(
+                currentColor = currentColor,
+                currentSize = currentBrushSize,
+                currentShape = currentShape,
+                onColorClick = { showColorPicker = true },
+                onSizeClick = { showSizePicker = true },
+                onShapeClick = { showShapePicker = true },
+                onUndo = {
+                    if (drawingImage.undo()) {
+                        redrawTrigger++
+                    }
+                },
+                onRedo = {
+                    if (drawingImage.redo()) {
+                        redrawTrigger++
+                    }
+                },
+                onClear = {
+                    drawingImage.clear()
+                    redrawTrigger++
+                }
+            )
+        }
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            // Main drawing canvas
+            Canvas(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.White)
+                    .pointerInput(currentColor, currentBrushSize) {
+                        detectDragGestures(
+                            onDragStart = { offset ->
+                                currentStroke.clear()
+                                currentStroke.add(Point(offset.x, offset.y))
+                            },
+                            onDrag = { change, _ ->
+                                change.consume()
+                                currentStroke.add(
+                                    Point(change.position.x, change.position.y)
+                                )
+                            },
+                            onDragEnd = {
+                                if (currentStroke.size >= 2) {
+                                    // Convert Color to ARGB Int
+                                    val argbInt = android.graphics.Color.argb(
+                                        (currentColor.alpha * 255).toInt(),
+                                        (currentColor.red * 255).toInt(),
+                                        (currentColor.green * 255).toInt(),
+                                        (currentColor.blue * 255).toInt()
+                                    )
+
+                                    drawingImage.addStroke(
+                                        com.example.drawingapp.model.Stroke(
+                                            points = currentStroke.toList(),
+                                            width = currentBrushSize,
+                                            argb = argbInt
+                                        )
+                                    )
+                                }
+                                currentStroke.clear()
+                                redrawTrigger++
+                            }
+                        )
+                    }
+            ) {
+                // Draw all saved strokes
+                val strokes = drawingImage.strokeList()
+                strokes.forEach { stroke ->
+                    // Convert ARGB Int back to Color
+                    val strokeColor = Color(
+                        red = android.graphics.Color.red(stroke.argb) / 255f,
+                        green = android.graphics.Color.green(stroke.argb) / 255f,
+                        blue = android.graphics.Color.blue(stroke.argb) / 255f,
+                        alpha = android.graphics.Color.alpha(stroke.argb) / 255f
+                    )
+
+                    for (i in 0 until stroke.points.size - 1) {
+                        val start = stroke.points[i]
+                        val end = stroke.points[i + 1]
+
+                        drawLine(
+                            color = strokeColor,
+                            start = Offset(start.x, start.y),
+                            end = Offset(end.x, end.y),
+                            strokeWidth = stroke.width,
+                            cap = StrokeCap.Round
+                        )
+                    }
+                }
+
+                // Draw current stroke being drawn
+                if (currentStroke.size >= 2) {
+                    for (i in 0 until currentStroke.size - 1) {
+                        val start = currentStroke[i]
+                        val end = currentStroke[i + 1]
+
+                        drawLine(
+                            color = currentColor,
+                            start = Offset(start.x, start.y),
+                            end = Offset(end.x, end.y),
+                            strokeWidth = currentBrushSize,
+                            cap = StrokeCap.Round
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    // Color picker dialog
+    if (showColorPicker) {
+        ColorPickerDialog(
+            currentColor = currentColor,
+            onColorSelected = { color ->
+                currentColor = color
+                showColorPicker = false
+            },
+            onDismiss = { showColorPicker = false }
+        )
+    }
+
+    // Size slider dialog
+    if (showSizePicker) {
+        SizeSliderDialog(
+            currentSize = currentBrushSize,
+            onSizeSelected = { size ->
+                currentBrushSize = size
+                showSizePicker = false
+            },
+            onDismiss = { showSizePicker = false }
+        )
+    }
+
+    // Shape picker dialog
+    if (showShapePicker) {
+        ShapePickerDialog(
+            currentShape = currentShape,
+            onShapeSelected = { shape ->
+                currentShape = shape
+                showShapePicker = false
+            },
+            onDismiss = { showShapePicker = false }
+        )
+    }
 }
 
 /**
- * Draws the currently selected Image's points on the canvas.
+ * Bottom toolbar with drawing tools
  */
 @Composable
-fun DrawPoints(viewModel: DrawingAppViewModel) {
+private fun DrawingToolbar(
+    currentColor: Color,
+    currentSize: Float,
+    currentShape: BrushType,
+    onColorClick: () -> Unit,
+    onSizeClick: () -> Unit,
+    onShapeClick: () -> Unit,
+    onUndo: () -> Unit,
+    onRedo: () -> Unit,
+    onClear: () -> Unit
+) {
+    Surface(
+        tonalElevation = 8.dp,
+        shadowElevation = 8.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+            // Top row: Undo, Redo, Clear
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                OutlinedButton(onClick = onUndo) {
+                    Text("Undo")
+                }
+                OutlinedButton(onClick = onRedo) {
+                    Text("Redo")
+                }
+                OutlinedButton(onClick = onClear) {
+                    Text("Clear")
+                }
+            }
 
+            Spacer(Modifier.height(12.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(12.dp))
+
+            // Bottom row: Color, Size, Shape
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Color button
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(currentColor, MaterialTheme.shapes.medium)
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    TextButton(onClick = onColorClick) {
+                        Text("Color")
+                    }
+                }
+
+                // Size button
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "${currentSize.toInt()}",
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                    TextButton(onClick = onSizeClick) {
+                        Text("Size")
+                    }
+                }
+
+                // Shape button
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        when (currentShape) {
+                            BrushType.CIRCLE -> "○"
+                            BrushType.RECTANGLE -> "▢"
+                            BrushType.LINE -> "/"
+                        },
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                    TextButton(onClick = onShapeClick) {
+                        Text("Shape")
+                    }
+                }
+            }
+        }
+    }
 }
