@@ -1,6 +1,5 @@
 package com.example.drawingapp.navigation
 
-import android.window.SplashScreen
 import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -29,9 +28,22 @@ fun AppNavHost(
             MainGallery(navController, viewModel)
         }
 
-        composable("drawingCanvas/{imageId}") {
-            val imgID = it.arguments?.getInt("imageID")
-            DrawingCanvas(navController, viewModel, imgID)
+        composable("drawingCanvas/new") {
+            // DrawingCanvas should treat null index as "new"
+            DrawingCanvas(navController, viewModel, null)
+        }
+
+        composable(
+            route = "drawingCanvas/{index}",
+            arguments = listOf(
+                androidx.navigation.navArgument("index") {
+                    type = androidx.navigation.NavType.IntType
+                    nullable = false
+                }
+            )
+        ) { entry ->
+            val idx = entry.arguments?.getInt("index")
+            DrawingCanvas(navController, viewModel, idx)
         }
 
         composable("gallery") {
