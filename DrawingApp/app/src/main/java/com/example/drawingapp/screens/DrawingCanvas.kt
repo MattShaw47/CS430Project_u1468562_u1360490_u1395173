@@ -18,9 +18,11 @@ import com.example.drawingapp.BrushType
 import com.example.drawingapp.DrawingAppViewModel
 import com.example.drawingapp.model.DrawingImage
 import com.example.drawingapp.model.Point
+import com.example.drawingapp.model.Stroke
 import com.example.drawingapp.ui.components.ColorPickerDialog
 import com.example.drawingapp.ui.components.ShapePickerDialog
 import com.example.drawingapp.ui.components.SizeSliderDialog
+import kotlin.math.*
 
 /**
  * Creates the Drawing Canvas.
@@ -38,7 +40,7 @@ fun DrawingCanvas(
     // Current drawing state
     var currentColor by remember { mutableStateOf(Color.Black) }
     var currentBrushSize by remember { mutableStateOf(10f) }
-    var currentShape by remember { mutableStateOf(BrushType.CIRCLE) }
+    var currentShape by remember { mutableStateOf(BrushType.FREEHAND) }
 
     // Dialog visibility states
     var showColorPicker by remember { mutableStateOf(false) }
@@ -54,8 +56,51 @@ fun DrawingCanvas(
         }
     }
 
-    // Current stroke being drawn - using mutableStateListOf for better performance
+    // Current stroke being drawn
     val currentStroke = remember { mutableStateListOf<Point>() }
+
+    var dragStart by remember { mutableStateOf<Offset?>(null) }
+    var dragCurrent by remember { mutableStateOf<Offset?>(null) }
+
+    fun buildRectanglePoints(a: Offset, b: Offset): List<Point> {
+        val left = min(a.x, b.x)
+        val right = max(a.x, b.x)
+        val top = min(a.y, b.y)
+        val bottom = max(a.y, b.y)
+        return listOf(
+            Point(left, top), Point(right, top),
+            Point(right, top), Point(right, bottom),
+            Point(right, bottom), Point(left, bottom),
+            Point(left, bottom), Point(left, top)
+        )
+    }
+
+    // Ellipse (circle if bounds are square) approximated by N segments
+    fun buildEllipsePoints(a: Offset, b: Offset, segments: Int = 48): List<Point> {
+        val cx = (a.x + b.x) / 2f
+        val cy = (a.y + b.y) / 2f
+        val rx = abs(b.x - a.x) / 2f
+        val ry = abs(b.y - a.y) / 2f
+        val n = max(12, segments)
+        val pts = ArrayList<Point>(n + 1)
+        for (k in 0..n) {
+            val t = (2.0 * Math.PI * k / n).toFloat()
+            val x = cx + rx * cos(t)
+            val y = cy + ry * sin(t)
+            pts.add(Point(x, y))
+        }
+        return pts
+    }
+
+    // Utility: current Color -> ARGB int
+    fun colorToArgbInt(c: Color): Int =
+        android.graphics.Color.argb(
+            (c.alpha * 255).toInt(),
+            (c.red * 255).toInt(),
+            (c.green * 255).toInt(),
+            (c.blue * 255).toInt()
+        )
+
 
     // Force recomposition when strokes change
     var redrawTrigger by remember { mutableStateOf(0) }
@@ -121,43 +166,73 @@ fun DrawingCanvas(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.White)
-                    .pointerInput(currentColor, currentBrushSize) {
+                    .pointerInput(currentColor, currentBrushSize, currentShape) {
                         detectDragGestures(
                             onDragStart = { offset ->
                                 currentStroke.clear()
-                                currentStroke.add(Point(offset.x, offset.y))
+                                when (currentShape) {
+                                    BrushType.FREEHAND -> {
+                                        currentStroke.add(Point(offset.x, offset.y))
+                                    }
+                                    BrushType.LINE    -> {
+                                        dragStart = offset
+                                        dragCurrent = offset
+                                        currentStroke.add(Point(offset.x, offset.y))
+                                        currentStroke.add(Point(offset.x, offset.y))
+                                    }
+                                    BrushType.RECTANGLE, BrushType.CIRCLE -> {
+                                        dragStart = offset
+                                        dragCurrent = offset
+                                    }
+                                }
                             },
                             onDrag = { change, _ ->
                                 change.consume()
-                                currentStroke.add(
-                                    Point(change.position.x, change.position.y)
-                                )
+                                when (currentShape) {
+                                    BrushType.FREEHAND -> {
+                                        val p = change.position
+                                        currentStroke.add(Point(p.x, p.y))
+                                    }
+                                    BrushType.LINE -> {
+                                        dragCurrent = change.position
+                                        val s = dragStart!!; val e = dragCurrent!!
+                                        currentStroke.clear()
+                                        currentStroke.add(Point(s.x, s.y))
+                                        currentStroke.add(Point(e.x, e.y))
+                                    }
+                                    BrushType.RECTANGLE -> {
+                                        dragCurrent = change.position
+                                        currentStroke.clear()
+                                        buildRectanglePoints(dragStart!!, dragCurrent!!).forEach { currentStroke.add(it) }
+                                    }
+                                    BrushType.CIRCLE -> {
+                                        dragCurrent = change.position
+                                        currentStroke.clear()
+                                        buildEllipsePoints(dragStart!!, dragCurrent!!, 48).forEach { currentStroke.add(it) }
+                                    }
+                                }
                             },
                             onDragEnd = {
-                                if (currentStroke.size >= 2) {
-                                    // Convert Color to ARGB Int
-                                    val argbInt = android.graphics.Color.argb(
-                                        (currentColor.alpha * 255).toInt(),
-                                        (currentColor.red * 255).toInt(),
-                                        (currentColor.green * 255).toInt(),
-                                        (currentColor.blue * 255).toInt()
-                                    )
-
+                                val pts = currentStroke.toList()
+                                if (pts.size >= 2) {
                                     drawingImage.addStroke(
-                                        com.example.drawingapp.model.Stroke(
-                                            points = currentStroke.toList(),
+                                        Stroke(
+                                            points = pts,
                                             width = currentBrushSize,
-                                            argb = argbInt
+                                            argb = colorToArgbInt(currentColor)
                                         )
                                     )
                                 }
                                 currentStroke.clear()
+                                dragStart = null
+                                dragCurrent = null
                                 redrawTrigger++
                             }
                         )
                     }
             ) {
                 // Draw all saved strokes
+                val __rt = redrawTrigger
                 val strokes = drawingImage.strokeList()
                 strokes.forEach { stroke ->
                     // Convert ARGB Int back to Color
@@ -319,6 +394,7 @@ private fun DrawingToolbar(
                             BrushType.CIRCLE -> "○"
                             BrushType.RECTANGLE -> "▢"
                             BrushType.LINE -> "/"
+                            BrushType.FREEHAND -> "⌇"
                         },
                         style = MaterialTheme.typography.headlineSmall
                     )

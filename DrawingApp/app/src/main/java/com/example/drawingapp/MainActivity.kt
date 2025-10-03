@@ -31,7 +31,7 @@ data class Point(
  * Note - May need to add more shapes.
  */
 enum class BrushType() {
-    LINE, CIRCLE, RECTANGLE
+    LINE, CIRCLE, RECTANGLE, FREEHAND
 }
 
 class MainActivity : ComponentActivity() {

@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.example.drawingapp.BrushType
 
 /**
@@ -31,11 +32,17 @@ fun ShapePickerDialog(
 ) {
     var selectedShape by remember { mutableStateOf(currentShape) }
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
         Surface(
             shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colorScheme.surface,
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(0.92f)
+                .widthIn(min = 360.dp)
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
@@ -67,6 +74,11 @@ fun ShapePickerDialog(
                         shape = BrushType.LINE,
                         isSelected = selectedShape == BrushType.LINE,
                         onClick = { selectedShape = BrushType.LINE }
+                    )
+                    ShapeOption(
+                        shape = BrushType.FREEHAND,
+                        isSelected = selectedShape == BrushType.FREEHAND,
+                        onClick = { selectedShape = BrushType.FREEHAND }
                     )
                 }
 
@@ -104,7 +116,7 @@ private fun ShapeOption(
 ) {
     Box(
         modifier = Modifier
-            .size(80.dp)
+            .size(65.dp)
             .border(
                 width = if (isSelected) 3.dp else 1.dp,
                 color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Gray,
@@ -136,6 +148,34 @@ private fun ShapeOption(
                         color = Color.Black,
                         start = Offset(size.width * 0.2f, size.height * 0.8f),
                         end = Offset(size.width * 0.8f, size.height * 0.2f),
+                        strokeWidth = 3f
+                    )
+                }
+                BrushType.FREEHAND -> {
+                    val w = size.width
+                    val h = size.height
+                    drawLine(
+                        color = Color.Black,
+                        start = Offset(w * 0.2f, h * 0.6f),
+                        end = Offset(w * 0.35f, h * 0.4f),
+                        strokeWidth = 3f
+                    )
+                    drawLine(
+                        color = Color.Black,
+                        start = Offset(w * 0.35f, h * 0.4f),
+                        end = Offset(w * 0.5f, h * 0.65f),
+                        strokeWidth = 3f
+                    )
+                    drawLine(
+                        color = Color.Black,
+                        start = Offset(w * 0.5f, h * 0.65f),
+                        end = Offset(w * 0.65f, h * 0.35f),
+                        strokeWidth = 3f
+                    )
+                    drawLine(
+                        color = Color.Black,
+                        start = Offset(w * 0.65f, h * 0.35f),
+                        end = Offset(w * 0.8f, h * 0.55f),
                         strokeWidth = 3f
                     )
                 }
