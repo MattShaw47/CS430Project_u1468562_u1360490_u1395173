@@ -16,12 +16,12 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.drawingapp.BrushType
 import com.example.drawingapp.DrawingAppViewModel
-import com.example.drawingapp.model.DrawingImage
 import com.example.drawingapp.model.Point
 import com.example.drawingapp.model.Stroke
 import com.example.drawingapp.ui.components.ColorPickerDialog
 import com.example.drawingapp.ui.components.ShapePickerDialog
 import com.example.drawingapp.ui.components.SizeSliderDialog
+import androidx.compose.runtime.LaunchedEffect
 import kotlin.math.*
 
 /**
@@ -37,28 +37,27 @@ fun DrawingCanvas(
     viewModel: DrawingAppViewModel,
     imageIndex: Int? = null
 ) {
-    // Current drawing state
-    var currentColor by remember { mutableStateOf(Color.Black) }
-    var currentBrushSize by remember { mutableStateOf(10f) }
-    var currentShape by remember { mutableStateOf(BrushType.FREEHAND) }
+    // pen property state
+    val currentColor by viewModel.selectedColor.collectAsState()
+    val currentBrushSize by viewModel.selectedSize.collectAsState()
+    val currentShape by viewModel.selectedBrushType.collectAsState()
 
     // Dialog visibility states
     var showColorPicker by remember { mutableStateOf(false) }
     var showSizePicker by remember { mutableStateOf(false) }
     var showShapePicker by remember { mutableStateOf(false) }
+    val drawingImage by viewModel.activeDrawing.collectAsState()
 
-    // Drawing model
-    val drawingImage = remember(imageIndex) {
-        if (imageIndex != null && imageIndex >= 0) {
-            viewModel.drawings.value.getOrNull(imageIndex) ?: DrawingImage(size = 1024)
-        } else {
-            DrawingImage(size = 1024)
+    LaunchedEffect(imageIndex) {
+        if (imageIndex == null && drawingImage.strokeList().isEmpty()) {
+            viewModel.startNewDrawing()
+        } else if (imageIndex != null) {
+            viewModel.editDrawing(imageIndex)
         }
     }
 
     // Current stroke being drawn
     val currentStroke = remember { mutableStateListOf<Point>() }
-
     var dragStart by remember { mutableStateOf<Offset?>(null) }
     var dragCurrent by remember { mutableStateOf<Offset?>(null) }
 
@@ -103,7 +102,7 @@ fun DrawingCanvas(
 
 
     // Force recomposition when strokes change
-    var redrawTrigger by remember { mutableStateOf(0) }
+    var redrawTrigger by remember { mutableIntStateOf(0) }
 
     Scaffold(
         topBar = {
@@ -112,7 +111,11 @@ fun DrawingCanvas(
                     Text(if (imageIndex != null) "Edit Drawing #$imageIndex" else "New Drawing")
                 },
                 navigationIcon = {
-                    TextButton(onClick = { navController.popBackStack() }) {
+                    TextButton(onClick = {
+                        viewModel.resetActiveDrawing(true)
+                        viewModel.resetPenProperties()
+                        navController.popBackStack()
+                    }) {
                         Text("Back")
                     }
                 },
@@ -120,6 +123,8 @@ fun DrawingCanvas(
                     TextButton(
                         onClick = {
                             drawingImage.save()
+                            viewModel.saveActiveDrawing(imageIndex)
+                            viewModel.resetPenProperties()
                             if (imageIndex == null) {
                                 viewModel.addDrawing(drawingImage)
                             }
@@ -174,12 +179,14 @@ fun DrawingCanvas(
                                     BrushType.FREEHAND -> {
                                         currentStroke.add(Point(offset.x, offset.y))
                                     }
-                                    BrushType.LINE    -> {
+
+                                    BrushType.LINE -> {
                                         dragStart = offset
                                         dragCurrent = offset
                                         currentStroke.add(Point(offset.x, offset.y))
                                         currentStroke.add(Point(offset.x, offset.y))
                                     }
+
                                     BrushType.RECTANGLE, BrushType.CIRCLE -> {
                                         dragStart = offset
                                         dragCurrent = offset
@@ -193,22 +200,33 @@ fun DrawingCanvas(
                                         val p = change.position
                                         currentStroke.add(Point(p.x, p.y))
                                     }
+
                                     BrushType.LINE -> {
                                         dragCurrent = change.position
-                                        val s = dragStart!!; val e = dragCurrent!!
+                                        val s = dragStart!!;
+                                        val e = dragCurrent!!
                                         currentStroke.clear()
                                         currentStroke.add(Point(s.x, s.y))
                                         currentStroke.add(Point(e.x, e.y))
                                     }
+
                                     BrushType.RECTANGLE -> {
                                         dragCurrent = change.position
                                         currentStroke.clear()
-                                        buildRectanglePoints(dragStart!!, dragCurrent!!).forEach { currentStroke.add(it) }
+                                        buildRectanglePoints(
+                                            dragStart!!,
+                                            dragCurrent!!
+                                        ).forEach { currentStroke.add(it) }
                                     }
+
                                     BrushType.CIRCLE -> {
                                         dragCurrent = change.position
                                         currentStroke.clear()
-                                        buildEllipsePoints(dragStart!!, dragCurrent!!, 48).forEach { currentStroke.add(it) }
+                                        buildEllipsePoints(
+                                            dragStart!!,
+                                            dragCurrent!!,
+                                            48
+                                        ).forEach { currentStroke.add(it) }
                                     }
                                 }
                             },
@@ -281,7 +299,7 @@ fun DrawingCanvas(
         ColorPickerDialog(
             currentColor = currentColor,
             onColorSelected = { color ->
-                currentColor = color
+                viewModel.setColor(color)
                 showColorPicker = false
             },
             onDismiss = { showColorPicker = false }
@@ -292,8 +310,9 @@ fun DrawingCanvas(
     if (showSizePicker) {
         SizeSliderDialog(
             currentSize = currentBrushSize,
+            currentColor,
             onSizeSelected = { size ->
-                currentBrushSize = size
+                viewModel.setSize(size)
                 showSizePicker = false
             },
             onDismiss = { showSizePicker = false }
@@ -305,7 +324,7 @@ fun DrawingCanvas(
         ShapePickerDialog(
             currentShape = currentShape,
             onShapeSelected = { shape ->
-                currentShape = shape
+                viewModel.setShape(shape)
                 showShapePicker = false
             },
             onDismiss = { showShapePicker = false }

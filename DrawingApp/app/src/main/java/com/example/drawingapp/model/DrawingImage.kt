@@ -85,6 +85,13 @@ class DrawingImage(size: Int = 1024) {
     // for comparison testing
     fun snapshot(): Any = currentSnapshot()
 
+    fun cloneDeep(): DrawingImage {
+        val copy = DrawingImage(this.size)
+        val snapshot = currentSnapshot()
+        copy.restore((snapshot))
+        return copy
+    }
+
     private fun record() {
         undo.addLast(currentSnapshot())
         redo.clear()

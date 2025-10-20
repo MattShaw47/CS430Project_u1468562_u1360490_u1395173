@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.example.drawingapp.DrawingAppViewModel
 
 /**
  * Brush size slider dialog
@@ -20,6 +21,7 @@ import androidx.compose.ui.window.Dialog
 @Composable
 fun SizeSliderDialog(
     currentSize: Float,
+    currentColor: Color,
     onSizeSelected: (Float) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -49,7 +51,7 @@ fun SizeSliderDialog(
                         .padding(vertical = 16.dp)
                 ) {
                     drawCircle(
-                        color = Color.Black,
+                        color = currentColor,
                         radius = brushSize,
                         center = center
                     )

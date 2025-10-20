@@ -71,7 +71,9 @@ fun MainGallery(
                 // separator of new button from others
                 Spacer(Modifier.height(20.dp))
                 HorizontalDivider(
-                    Modifier.fillMaxWidth(0.72f).alpha(0.25f),
+                    Modifier
+                        .fillMaxWidth(0.72f)
+                        .alpha(0.25f),
                     DividerDefaults.Thickness,
                     DividerDefaults.color
                 )

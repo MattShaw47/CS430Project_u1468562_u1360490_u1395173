@@ -16,24 +16,6 @@ import com.example.drawingapp.ui.theme.DrawingAppTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
-/**
- * Defines a single point on an image.
- */
-data class Point(
-    val x: Int,
-    val y: Int,
-    val color: Color = Color.White,
-    val brushType: BrushType = BrushType.CIRCLE
-) {}
-
-/**
- * Defines the brush type.
- * Note - May need to add more shapes.
- */
-enum class BrushType() {
-    LINE, CIRCLE, RECTANGLE, FREEHAND
-}
-
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

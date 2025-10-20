@@ -90,6 +90,7 @@ fun ComponentTestScreen(navController: NavController) {
     if (showSizePicker) {
         SizeSliderDialog(
             currentSize = selectedSize,
+            currentColor = selectedColor,
             onSizeSelected = { size ->
                 selectedSize = size
                 showSizePicker = false
