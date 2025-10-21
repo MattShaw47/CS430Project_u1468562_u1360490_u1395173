@@ -10,27 +10,31 @@ import kotlinx.coroutines.flow.map
 import java.io.File
 import java.io.FileOutputStream
 
+// Repository pattern - single source of truth for drawing data
 class DrawingRepository private constructor(context: Context) {
     private val drawingDao: DrawingDao = DrawingDatabase.getDatabase(context).drawingDao()
     private val appContext = context.applicationContext
 
+    // Get all drawings from database
     val allDrawings: Flow<List<DrawingImage>> = drawingDao.getAllDrawings().map { entities ->
-        entities.map { entity -> entityToDrawingImage(entity) }
+        entities.map { entity -> convertToDrawingImage(entity) }
     }
 
     suspend fun insertDrawing(drawingImage: DrawingImage): Long {
-        val entity = drawingImageToEntity(drawingImage)
+        val entity = convertToEntity(drawingImage)
         return drawingDao.insertDrawing(entity)
     }
 
     suspend fun updateDrawing(id: Long, drawingImage: DrawingImage) {
-        val entity = drawingImageToEntity(drawingImage, id)
+        val entity = convertToEntity(drawingImage, id)
         drawingDao.updateDrawing(entity)
     }
 
     suspend fun deleteDrawing(id: Long) {
         val entity = drawingDao.getDrawingById(id)
-        entity?.let { drawingDao.deleteDrawing(it) }
+        if (entity != null) {
+            drawingDao.deleteDrawing(entity)
+        }
     }
 
     suspend fun deleteAllDrawings() {
@@ -38,36 +42,37 @@ class DrawingRepository private constructor(context: Context) {
     }
 
     suspend fun getDrawingById(id: Long): DrawingImage? {
-        return drawingDao.getDrawingById(id)?.let { entityToDrawingImage(it) }
+        val entity = drawingDao.getDrawingById(id)
+        return if (entity != null) convertToDrawingImage(entity) else null
     }
 
     suspend fun getDrawingCount(): Int {
         return drawingDao.getDrawingCount()
     }
 
-    // Share drawing as image
     fun shareDrawing(bitmap: Bitmap): Uri? {
-        return try {
+        try {
             val cachePath = File(appContext.cacheDir, "images")
             cachePath.mkdirs()
             val file = File(cachePath, "shared_drawing_${System.currentTimeMillis()}.png")
 
-            FileOutputStream(file).use { out ->
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
-            }
+            val out = FileOutputStream(file)
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+            out.close()
 
-            FileProvider.getUriForFile(
+            return FileProvider.getUriForFile(
                 appContext,
                 "${appContext.packageName}.fileprovider",
                 file
             )
         } catch (e: Exception) {
             e.printStackTrace()
-            null
+            return null
         }
     }
 
-    private fun drawingImageToEntity(drawingImage: DrawingImage, id: Long = 0): DrawingEntity {
+    // Helper methods to convert between entity and model
+    private fun convertToEntity(drawingImage: DrawingImage, id: Long = 0): DrawingEntity {
         return DrawingEntity(
             id = id,
             strokes = drawingImage.strokeList(),
@@ -76,13 +81,13 @@ class DrawingRepository private constructor(context: Context) {
         )
     }
 
-    private fun entityToDrawingImage(entity: DrawingEntity): DrawingImage {
-        val drawingImage = DrawingImage(entity.size)
-        entity.strokes.forEach { stroke ->
-            drawingImage.addStroke(stroke)
+    private fun convertToDrawingImage(entity: DrawingEntity): DrawingImage {
+        val img = DrawingImage(entity.size)
+        for (stroke in entity.strokes) {
+            img.addStroke(stroke)
         }
-        drawingImage.save()
-        return drawingImage
+        img.save()
+        return img
     }
 
     companion object {

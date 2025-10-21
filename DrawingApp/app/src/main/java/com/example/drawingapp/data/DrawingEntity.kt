@@ -4,7 +4,6 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
-import com.example.drawingapp.model.Point
 import com.example.drawingapp.model.Stroke
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
