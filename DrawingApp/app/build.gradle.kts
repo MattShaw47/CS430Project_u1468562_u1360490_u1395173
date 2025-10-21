@@ -57,6 +57,7 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.material3)
+    implementation("androidx.compose.material:material-icons-extended:1.7.8")
 
     // Coil for image loading
     implementation(libs.coil.compose)

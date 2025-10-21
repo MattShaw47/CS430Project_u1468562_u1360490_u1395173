@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -59,6 +62,39 @@ fun Gallery(navController: NavController, viewModel: DrawingAppViewModel) {
                             )
                         }
                     }
+                }
+            }
+        }
+
+        // Bulk delete bar if multiple are selected
+        if (selected.size >= 2) {
+            val selectedIndices = remember(selected) {
+                selected.toList().sortedDescending()
+            }
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "${selected.size} selected",
+                    modifier = Modifier.padding(end = 12.dp),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Button(
+                    onClick = {
+                        selectedIndices.forEach { idx -> viewModel.deleteAt(idx) }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    )
+                ) {
+                    Icon(Icons.Filled.Delete, contentDescription = "Delete selected")
+                    Spacer(Modifier.width(8.dp))
+                    Text("Delete selected")
                 }
             }
         }
@@ -133,68 +169,33 @@ private fun GalleryCell(
                         .fillMaxSize()
                         .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f))
                 )
-                Text(
-                    "Selected",
+                AssistChip(
+                    onClick = onToggleSelect,
+                    label = { Text("Selected") },
                     modifier = Modifier
-                        .align(Alignment.Center)
-                        .background(Color.White.copy(alpha = 0.7f))
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold
+                        .align(Alignment.TopStart)
+                        .padding(8.dp)
                 )
             }
 
-
-            // --------------  old code  -------------------
-
-//            Box(
-//                Modifier
-//                    .fillMaxSize()
-//                    .background(Color(0xFFEFEFEF))
-//                    .clickable { onToggleSelect() }
-//            )
-//            Text(
-//                text = "Image #$index",
-//                modifier = Modifier
-//                    .align(Alignment.TopStart)
-//                    .padding(8.dp),
-//                fontWeight = FontWeight.SemiBold
-//            )
-//            if (isSelected) {
-//                Box(
-//                    Modifier
-//                        .fillMaxSize()
-//                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f))
-//                )
-//                Text(
-//                    "Selected",
-//                    modifier = Modifier
-//                        .align(Alignment.Center)
-//                        .background(Color.White.copy(alpha = 0.7f))
-//                        .padding(horizontal = 8.dp, vertical = 4.dp),
-//                    color = MaterialTheme.colorScheme.primary,
-//                    fontWeight = FontWeight.Bold
-//                )
-//            }
             Row(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .align(Alignment.BottomEnd)
+                    .padding(6.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                OutlinedButton(onClick = onEdit, modifier = Modifier.weight(1f)) {
-                    Text("Edit")
+                FilledTonalIconButton(onClick = onEdit) {
+                    Icon(Icons.Filled.Edit, contentDescription = "Edit")
                 }
                 Spacer(Modifier.width(8.dp))
-                OutlinedButton(
+                FilledTonalIconButton(
                     onClick = onDelete,
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.outlinedButtonColors(
+                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.75f),
                         contentColor = MaterialTheme.colorScheme.error
                     )
                 ) {
-                    Text("Delete")
+                    Icon(Icons.Filled.Delete, contentDescription = "Delete")
                 }
             }
         }
