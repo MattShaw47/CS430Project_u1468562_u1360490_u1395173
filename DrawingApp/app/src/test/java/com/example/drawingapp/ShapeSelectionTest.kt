@@ -144,7 +144,8 @@ class ShapeSelectionTest {
         assertTrue("Should have CIRCLE", shapes.contains(BrushType.CIRCLE))
         assertTrue("Should have RECTANGLE", shapes.contains(BrushType.RECTANGLE))
         assertTrue("Should have LINE", shapes.contains(BrushType.LINE))
-        assertEquals("Should have exactly 3 shapes", 3, shapes.size)
+        assertTrue("Should have FREEHAND", shapes.contains(BrushType.FREEHAND))
+        assertEquals("Should have exactly 4 shapes", 4, shapes.size)
     }
 
     @Test

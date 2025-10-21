@@ -95,13 +95,6 @@ fun MainGallery(
                         .heightIn(min = 52.dp)
                 ) { Text("Settings") }
 
-                Spacer(Modifier.height(14.dp))
-                Button(
-                    onClick = { navController.navigate("componentTest") },
-                    modifier = Modifier
-                        .fillMaxWidth(0.62f)
-                        .heightIn(min = 52.dp)
-                ) { Text("Test Components") }
             }
         }
     }
