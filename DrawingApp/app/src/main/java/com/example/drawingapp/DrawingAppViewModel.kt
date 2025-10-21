@@ -1,26 +1,40 @@
 package com.example.drawingapp
 
+import android.graphics.Bitmap
 import android.net.Uri
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.room.util.copy
+import com.example.drawingapp.data.DrawingDataSource
+import com.example.drawingapp.data.DrawingRepository
 import com.example.drawingapp.model.DrawingImage
 import com.example.drawingapp.screens.DrawingCanvas
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 enum class BrushType() {
     LINE, CIRCLE, RECTANGLE, FREEHAND
 }
 
-class DrawingAppViewModel : ViewModel() {
+class DrawingAppViewModel(
+    private val repository: DrawingDataSource
+) : ViewModel() {
+
+    // Public gallery list
+    val drawings: StateFlow<List<DrawingImage>>
+
+    // Parallel list of ids that aligns with drawings by index
+    private val _ids = MutableStateFlow<List<Long>>(emptyList())
+    val ids: StateFlow<List<Long>> = _ids
     private val _selected = MutableStateFlow<Set<Int>>(emptySet())
     val selected: StateFlow<Set<Int>> = _selected
-
-    // gallery storage
-    private val _drawings = MutableStateFlow<List<DrawingImage>>(emptyList())
-    val drawings: StateFlow<List<DrawingImage>> = _drawings
 
     // Currently selected drawing
     private val _activeDrawing = MutableStateFlow<DrawingImage>(DrawingImage(1024))
@@ -39,99 +53,79 @@ class DrawingAppViewModel : ViewModel() {
     private val _selectedBrushType = MutableStateFlow<BrushType>(BrushType.FREEHAND)
     val selectedBrushType: StateFlow<BrushType> = _selectedBrushType
 
+    init {
+        // Collect repository stream with IDs and split it into two flows
+        drawings = repository.allDrawingsWithIds
+            .map { pairs ->
+                _ids.value = pairs.map { it.first }
+                pairs.map { it.second }
+            }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    }
+
     // VM state updating
-    fun addDrawing(img: DrawingImage) {
-        _drawings.value = _drawings.value + img
-    }
-
-    fun toggleSelected(index: Int) {
-        _selected.value = _selected.value.toMutableSet().also {
-            if (!it.add(index)) it.remove(index)
-        }
-    }
-
-    fun selectDrawing(imgID: Int) {
-        if (imgID in drawings.value.indices) {
-            _activeDrawing.value = _drawings.value[imgID]
-        }
-    }
-
     fun startNewDrawing() {
         _activeDrawing.value = DrawingImage(1024)
     }
 
-    fun editDrawing(imgID: Int) {
-        if (imgID in _drawings.value.indices) {
-            _activeDrawing.value = _drawings.value[imgID].cloneDeep()
+    fun editDrawing(index: Int) {
+        val current = drawings.value
+        if (index in current.indices) {
+            _activeDrawing.value = current[index].cloneDeep()
         }
     }
 
-    fun removeAt(index: Int) {
-        val current = _drawings.value
-        if (index !in current.indices) return
-
-        _drawings.value = current.toMutableList().also { it.removeAt(index) }
-        resetActiveDrawing(true)
-
-        // shift/clean selection indices
-        val newSel = buildSet {
-            for (i in _selected.value) {
-                when {
-                    i < index -> add(i)
-                    i > index -> add(i - 1)
-                }
-            }
-        }
-        _selected.value = newSel
-    }
-
-    fun saveActiveDrawing(imgID: Int?) {
-        if (imgID != null && imgID in drawings.value.indices) {
-            val currentDrawings = drawings.value.toMutableList()
-            currentDrawings[imgID] = activeDrawing.value.cloneDeep()
-            _drawings.value = currentDrawings
-        }
-
-        resetActiveDrawing(true)
-    }
-
-    fun resetActiveDrawing(toCleanState: Boolean, imgID: Int? = null) {
-        if (toCleanState) {
+    fun insertActive() {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.insertDrawing(_activeDrawing.value.cloneDeep())
             _activeDrawing.value = DrawingImage(1024)
-        } else {
-            if (imgID != null && imgID in drawings.value.indices) {
-                // clonedeep to avoid pass by ref
-                _activeDrawing.value = _drawings.value[imgID].cloneDeep()
-            } else {
-                _activeDrawing.value = DrawingImage(1024)
-            }
         }
     }
 
-    fun setActiveDrawing(img: DrawingImage) {
-        _activeDrawing.value = img
+    fun updateActiveAt(index: Int) {
+        val idList = ids.value
+        if (index !in idList.indices) return
+        val id = idList[index]
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.updateDrawing(id, _activeDrawing.value.cloneDeep())
+            _activeDrawing.value = DrawingImage(1024)
+        }
     }
 
-    fun setBackgroundPhotos(uris: List<Uri>) {
-        _backgroundPhotoUris.value = uris
+    fun deleteAt(index: Int) {
+        val idList = ids.value
+        if (index !in idList.indices) return
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.deleteDrawing(idList[index])
+            // shift selection indices locally
+            val oldSel = _selected.value
+            _selected.value = oldSel.mapNotNull {
+                when {
+                    it == index -> null
+                    it > index -> it - 1
+                    else -> it
+                }
+            }.toSet()
+        }
     }
 
-    // brush properties
-    fun setColor(newColor: Color) {
-        _selectedColor.value = newColor
+    fun clearAll() {
+        viewModelScope.launch(Dispatchers.IO) { repository.deleteAllDrawings() }
     }
 
-    fun setSize(size: Float) {
-        _selectedSize.value = size;
+    // share helper
+    fun shareBitmap(bitmap: Bitmap) = repository.shareDrawing(bitmap)
+
+    // selection & brush props
+    fun toggleSelected(index: Int) {
+        _selected.value = _selected.value.toMutableSet().also { if (!it.add(index)) it.remove(index) }
     }
 
-    fun setShape(shape: BrushType) {
-        _selectedBrushType.value = shape;
-    }
+    fun setColor(newColor: Color) { _selectedColor.value = newColor }
+    fun setSize(size: Float) { _selectedSize.value = size }
+    fun setShape(shape: BrushType) { _selectedBrushType.value = shape }
 
     fun resetPenProperties() {
-        setColor(Color.Black)
-        setSize(10F)
-        setShape(BrushType.FREEHAND)
+        setColor(Color.Black); setSize(10F); setShape(BrushType.FREEHAND)
     }
 }

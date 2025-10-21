@@ -52,10 +52,10 @@ fun Gallery(navController: NavController, viewModel: DrawingAppViewModel) {
                                 isSelected = index in selected,
                                 onToggleSelect = { viewModel.toggleSelected(index) },
                                 onEdit = {
-                                    viewModel.selectDrawing(index)
+                                    viewModel.editDrawing(index)
                                     navController.navigate("drawingCanvas/$index")
                                 },
-                                onDelete = { viewModel.removeAt(index) },
+                                onDelete = { viewModel.deleteAt(index) },
                             )
                         }
                     }

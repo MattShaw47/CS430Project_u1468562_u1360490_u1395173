@@ -11,7 +11,7 @@ import java.io.File
 import java.io.FileOutputStream
 
 // Repository pattern - single source of truth for drawing data
-class DrawingRepository private constructor(context: Context) {
+class DrawingRepository private constructor(context: Context) : DrawingDataSource {
     private val drawingDao: DrawingDao = DrawingDatabase.getDatabase(context).drawingDao()
     private val appContext = context.applicationContext
 
@@ -20,24 +20,29 @@ class DrawingRepository private constructor(context: Context) {
         entities.map { entity -> convertToDrawingImage(entity) }
     }
 
-    suspend fun insertDrawing(drawingImage: DrawingImage): Long {
+    override val allDrawingsWithIds: Flow<List<Pair<Long, DrawingImage>>> =
+        drawingDao.getAllDrawings().map { entities ->
+            entities.map { e -> e.id to convertToDrawingImage(e) }
+        }
+
+    override suspend fun insertDrawing(drawingImage: DrawingImage): Long {
         val entity = convertToEntity(drawingImage)
         return drawingDao.insertDrawing(entity)
     }
 
-    suspend fun updateDrawing(id: Long, drawingImage: DrawingImage) {
+    override suspend fun updateDrawing(id: Long, drawingImage: DrawingImage) {
         val entity = convertToEntity(drawingImage, id)
         drawingDao.updateDrawing(entity)
     }
 
-    suspend fun deleteDrawing(id: Long) {
+    override suspend fun deleteDrawing(id: Long) {
         val entity = drawingDao.getDrawingById(id)
         if (entity != null) {
             drawingDao.deleteDrawing(entity)
         }
     }
 
-    suspend fun deleteAllDrawings() {
+    override suspend fun deleteAllDrawings() {
         drawingDao.deleteAllDrawings()
     }
 
@@ -50,7 +55,7 @@ class DrawingRepository private constructor(context: Context) {
         return drawingDao.getDrawingCount()
     }
 
-    fun shareDrawing(bitmap: Bitmap): Uri? {
+    override fun shareDrawing(bitmap: Bitmap): Uri? {
         try {
             val cachePath = File(appContext.cacheDir, "images")
             cachePath.mkdirs()

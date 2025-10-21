@@ -49,10 +49,10 @@ fun DrawingCanvas(
     val drawingImage by viewModel.activeDrawing.collectAsState()
 
     LaunchedEffect(imageIndex) {
-        if (imageIndex == null && drawingImage.strokeList().isEmpty()) {
-            viewModel.startNewDrawing()
-        } else if (imageIndex != null) {
+        if (imageIndex != null) {
             viewModel.editDrawing(imageIndex)
+        } else {
+            viewModel.startNewDrawing()
         }
     }
 
@@ -112,7 +112,7 @@ fun DrawingCanvas(
                 },
                 navigationIcon = {
                     TextButton(onClick = {
-                        viewModel.resetActiveDrawing(true)
+                        viewModel.startNewDrawing()
                         viewModel.resetPenProperties()
                         navController.popBackStack()
                     }) {
@@ -123,11 +123,12 @@ fun DrawingCanvas(
                     TextButton(
                         onClick = {
                             drawingImage.save()
-                            viewModel.saveActiveDrawing(imageIndex)
-                            viewModel.resetPenProperties()
                             if (imageIndex == null) {
-                                viewModel.addDrawing(drawingImage)
+                                viewModel.insertActive()
+                            } else {
+                                viewModel.updateActiveAt(imageIndex)
                             }
+                            viewModel.resetPenProperties()
                             navController.popBackStack()
                         }
                     ) {

@@ -1,6 +1,7 @@
 package com.example.drawingapp.screens
 
 import android.net.Uri
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -21,23 +22,26 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
 import com.example.drawingapp.DrawingAppViewModel
+import com.example.drawingapp.model.DrawingImage
+import java.nio.file.Files.size
 
 @Composable
 fun MainGallery(
     navController: NavHostController,
     viewModel: DrawingAppViewModel
 ) {
-    val backgroundPhotos by viewModel.backgroundPhotoUris.collectAsState()
+    val drawings by viewModel.drawings.collectAsState()
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize()) {
             TiledBackdrop(
-                photos = backgroundPhotos,
+                drawings = drawings,
                 modifier = Modifier.fillMaxSize()
             )
 
@@ -107,28 +111,26 @@ fun MainGallery(
  */
 @Composable
 private fun TiledBackdrop(
-    photos: List<Uri>,
+    drawings: List<DrawingImage>,
     modifier: Modifier = Modifier,
     minTileSizeDp: Int = 120,
     totalTileCount: Int = 36
 ) {
-    // list containing first 36 uris, and nulls filling empty spaces if less than 36 uris
-    val slots: List<Uri?> = List(totalTileCount) { idx ->
-        photos.getOrNull(idx)
-    }
+    val slots: List<DrawingImage?> =
+        List(totalTileCount) { idx -> drawings.getOrNull(idx) }
 
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = minTileSizeDp.dp),
-        modifier = modifier.alpha(1f), // keep vivid; veil handled above
+        modifier = modifier.alpha(1f),
         contentPadding = PaddingValues(0.dp),
         horizontalArrangement = Arrangement.spacedBy(0.dp),
         verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
-        items(slots) { maybeUri ->
-            if (maybeUri == null) {
+        items(slots) { maybeDrawing ->
+            if (maybeDrawing == null) {
                 PlaceholderTile()
             } else {
-                PhotoTile(maybeUri)
+                PhotoTile(drawing = maybeDrawing)
             }
         }
     }
@@ -153,13 +155,37 @@ private fun PlaceholderTile() {
 }
 
 @Composable
-private fun PhotoTile(uri: Uri) {
-    Image(
-        painter = rememberAsyncImagePainter(uri),
-        contentDescription = null,
-        contentScale = ContentScale.Crop,
+private fun PhotoTile(drawing: DrawingImage) {
+    Canvas(
         modifier = Modifier
             .aspectRatio(1f)
             .fillMaxWidth()
-    )
+    ) {
+        val tileW = size.width
+        val tileH = size.height
+        val scaleX = tileW / drawing.size.toFloat()
+        val scaleY = tileH / drawing.size.toFloat()
+
+        val strokes = drawing.strokeList()
+        strokes.forEach { stroke ->
+            val color = Color(
+                red = android.graphics.Color.red(stroke.argb) / 255f,
+                green = android.graphics.Color.green(stroke.argb) / 255f,
+                blue = android.graphics.Color.blue(stroke.argb) / 255f,
+                alpha = android.graphics.Color.alpha(stroke.argb) / 255f
+            )
+
+            for (i in 0 until stroke.points.size - 1) {
+                val s = stroke.points[i]
+                val e = stroke.points[i + 1]
+                drawLine(
+                    color = color,
+                    start = androidx.compose.ui.geometry.Offset(s.x * scaleX, s.y * scaleY),
+                    end = androidx.compose.ui.geometry.Offset(e.x * scaleX, e.y * scaleY),
+                    strokeWidth = stroke.width * ((scaleX + scaleY) / 2f),
+                    cap = StrokeCap.Round
+                )
+            }
+        }
+    }
 }

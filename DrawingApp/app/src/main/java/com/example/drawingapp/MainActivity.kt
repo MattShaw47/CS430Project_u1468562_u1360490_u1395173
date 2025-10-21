@@ -8,6 +8,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
@@ -23,7 +24,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             DrawingAppTheme {
                 val myNavController = rememberNavController()
-                val drawingAppViewModel: DrawingAppViewModel = viewModel()
+                val drawingAppViewModel: DrawingAppViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+                    factory = DrawingAppViewModelFactory(LocalContext.current)
+                )
                 AppNavHost(myNavController, drawingAppViewModel)
             }
         }
