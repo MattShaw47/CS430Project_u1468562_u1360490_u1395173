@@ -1,8 +1,10 @@
 package com.example.drawingapp.data
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.FileProvider
 import com.example.drawingapp.model.DrawingImage
 import kotlinx.coroutines.flow.Flow
@@ -56,24 +58,23 @@ class DrawingRepository private constructor(context: Context) : DrawingDataSourc
     }
 
     override fun shareDrawing(bitmap: Bitmap): Uri? {
-        try {
-            val cachePath = File(appContext.cacheDir, "images")
-            cachePath.mkdirs()
-            val file = File(cachePath, "shared_drawing_${System.currentTimeMillis()}.png")
-
-            val out = FileOutputStream(file)
-            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
-            out.close()
-
-            return FileProvider.getUriForFile(
-                appContext,
-                "${appContext.packageName}.fileprovider",
-                file
-            )
-        } catch (e: Exception) {
+        return try {
+            val file = bitmapToTempFile(appContext, bitmap)
+            FileProvider.getUriForFile(appContext, "${appContext.packageName}.fileprovider", file)
+        } catch(e: Exception) {
             e.printStackTrace()
-            return null
+            null
         }
+    }
+
+    private fun bitmapToTempFile(context: Context, bitmap: Bitmap): File {
+        val imagesDir = File(context.cacheDir, "images")
+        if (!imagesDir.exists()) imagesDir.mkdirs()
+        val imageFile = File(imagesDir, "image${System.currentTimeMillis()}.png")
+        FileOutputStream(imageFile).use { out ->
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+        }
+        return imageFile
     }
 
     // Helper methods to convert between entity and model

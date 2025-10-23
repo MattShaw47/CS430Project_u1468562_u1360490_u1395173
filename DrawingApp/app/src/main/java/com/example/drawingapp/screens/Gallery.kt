@@ -1,16 +1,25 @@
 package com.example.drawingapp.screens
 
+import android.app.Activity
+import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,16 +27,34 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.drawingapp.DrawingAppViewModel
 import com.example.drawingapp.model.DrawingImage
+import android.graphics.BitmapFactory
+import androidx.activity.compose.LocalActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.runtime.Composable
 
 @Composable
 fun Gallery(navController: NavController, viewModel: DrawingAppViewModel) {
     val drawings by viewModel.drawings.collectAsState()
     val selected by viewModel.selected.collectAsState()
+    val context = LocalContext.current
+
+    val pickImageLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            val inputStream = context.contentResolver.openInputStream(it)
+            val bitmap = BitmapFactory.decodeStream(inputStream)
+            inputStream?.close()
+            var newImage = DrawingImage(1024)
+            newImage = newImage.convertBitmapToStrokes(bitmap)
+            viewModel.addDrawing(newImage)
+        }
+    }
 
     Column(Modifier.fillMaxSize()) {
         Box(Modifier.weight(1f)) {
@@ -58,7 +85,8 @@ fun Gallery(navController: NavController, viewModel: DrawingAppViewModel) {
                                     viewModel.editDrawing(index)
                                     navController.navigate("drawingCanvas/$index")
                                 },
-                                onDelete = { viewModel.deleteAt(index) },
+                                onShare = { shareImage(viewModel, drawings[index], context, index) },
+                                onDelete = { viewModel.deleteAt(index) }
                             )
                         }
                     }
@@ -71,18 +99,26 @@ fun Gallery(navController: NavController, viewModel: DrawingAppViewModel) {
             val selectedIndices = remember(selected) {
                 selected.toList().sortedDescending()
             }
-            Row(
-                Modifier
+            Column(
+                modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
+                horizontalAlignment = Alignment.End
             ) {
-                Text(
-                    "${selected.size} selected",
-                    modifier = Modifier.padding(end = 12.dp),
-                    style = MaterialTheme.typography.bodyMedium
-                )
+//                Text(
+//                    "${selected.size} selected",
+//                    modifier = Modifier.padding(end = 12.dp),
+//                    style = MaterialTheme.typography.bodyMedium
+//                )
+                Button(
+                    onClick = { shareSelectedImages(selected, drawings, context) },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Blue)
+                ) {
+                    Icon(Icons.Filled.Share, contentDescription = "Share selected")
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Share Selected")
+                }
+
                 Button(
                     onClick = {
                         selectedIndices.forEach { idx -> viewModel.deleteAt(idx) }
@@ -100,13 +136,29 @@ fun Gallery(navController: NavController, viewModel: DrawingAppViewModel) {
         }
 
         Spacer(Modifier.height(12.dp))
-        Button(
-            onClick = { navController.popBackStack() },
-            modifier = Modifier
+        Row (
+            Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 16.dp)
-        ) {
-            Text("Back to Main Menu")
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        )
+        {
+            Button(
+                onClick = { navController.popBackStack() },
+                modifier = Modifier.weight(1f).padding(4.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)
+            ) {
+                Text("Back to Main Menu")
+
+            }
+            Button(
+                onClick = { pickImageLauncher.launch("image/*") },
+                modifier = Modifier.weight(1f).padding(4.dp)
+            ) {
+                Icon(Icons.Filled.Download, contentDescription = "Import image")
+                Text("Import Image")
+            }
         }
     }
 }
@@ -118,6 +170,7 @@ private fun GalleryCell(
     isSelected: Boolean,
     onToggleSelect: () -> Unit,
     onEdit: () -> Unit,
+    onShare: () -> Unit,
     onDelete: () -> Unit
 ) {
     Surface(
@@ -184,6 +237,10 @@ private fun GalleryCell(
                     .padding(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                FilledTonalIconButton(onClick = onShare) {
+                    Icon(Icons.Filled.Share, contentDescription = "Share")
+                }
+                Spacer(Modifier.width(8.dp))
                 FilledTonalIconButton(onClick = onEdit) {
                     Icon(Icons.Filled.Edit, contentDescription = "Edit")
                 }
@@ -199,5 +256,30 @@ private fun GalleryCell(
                 }
             }
         }
+    }
+}
+
+private fun shareImage(viewModel: DrawingAppViewModel, drawing: DrawingImage, context: Context, imageID: Int) {
+    val drawingBmp = drawing.getStrokesAsBitmap()
+    viewModel.shareBitmap(drawingBmp)
+    val uri = viewModel.shareBitmap(drawingBmp)
+    uri?.let {
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "image/png"
+            putExtra(Intent.EXTRA_STREAM, it)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(shareIntent, "Share Drawing"))
+    }
+}
+
+// TODO
+private fun shareSelectedImages(
+    imgIndices: Set<Int>,
+    drawings: List<DrawingImage>,
+    context: Context
+) {
+    val selectedImages = imgIndices.forEach { idx ->
+        drawings[idx]
     }
 }

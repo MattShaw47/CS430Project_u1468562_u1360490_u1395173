@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.room.util.copy
 import com.example.drawingapp.data.DrawingDataSource
 import com.example.drawingapp.data.DrawingRepository
@@ -66,6 +67,12 @@ class DrawingAppViewModel(
     // VM state updating
     fun startNewDrawing() {
         _activeDrawing.value = DrawingImage(1024)
+    }
+
+    fun addDrawing(newDrawing: DrawingImage) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.insertDrawing(newDrawing)
+        }
     }
 
     fun editDrawing(index: Int) {
