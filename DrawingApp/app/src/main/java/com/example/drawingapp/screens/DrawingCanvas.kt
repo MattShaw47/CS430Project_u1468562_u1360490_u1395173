@@ -22,6 +22,9 @@ import com.example.drawingapp.ui.components.ColorPickerDialog
 import com.example.drawingapp.ui.components.ShapePickerDialog
 import com.example.drawingapp.ui.components.SizeSliderDialog
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.drawscope.draw
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import kotlin.math.*
 
 /**
@@ -250,9 +253,21 @@ fun DrawingCanvas(
                         )
                     }
             ) {
+                // draw the bitmap if existing
+                if (drawingImage.importedBitmap != null) {
+                    drawIntoCanvas { canvas ->
+                        drawingImage.importedBitmap?.let { bmp ->
+                            val nativeCanvas = canvas.nativeCanvas
+                            val destRect = android.graphics.Rect(0, 0, size.width.toInt(), size.height.toInt())
+                            nativeCanvas.drawBitmap(bmp, null, destRect, null)
+                        }
+                    }
+                }
+
                 // Draw all saved strokes
                 val __rt = redrawTrigger
                 val strokes = drawingImage.strokeList()
+
                 strokes.forEach { stroke ->
                     // Convert ARGB Int back to Color
                     val strokeColor = Color(

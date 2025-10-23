@@ -4,9 +4,11 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.Rect
 import java.util.ArrayDeque
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.get
+import androidx.core.graphics.scale
 
 data class Point(val x: Float, val y: Float)
 data class Stroke(
@@ -26,6 +28,7 @@ class DrawingImage(size: Int = 1024) {
         private set
 
     private val strokes = mutableListOf<Stroke>()
+    var importedBitmap: Bitmap? = null
 
     private data class Snapshot(val size: Int, val strokes: List<Stroke>)
 
@@ -47,6 +50,11 @@ class DrawingImage(size: Int = 1024) {
         record()
         strokes += stroke
         bumpVersion()
+    }
+
+    fun setBitmap(bitmap: Bitmap?) {
+        if (bitmap != null)
+            importedBitmap = bitmap
     }
 
     fun eraseStrokeById(id: Long) {
@@ -101,6 +109,17 @@ class DrawingImage(size: Int = 1024) {
         return copy
     }
 
+//    fun drawBitmap(canvas: Canvas) {
+//        importedBitmap?.let { bmp ->
+//            val destRect = Rect(0, 0, canvas.width, canvas.height)
+//            canvas.drawBitmap(bmp, null, destRect, null)
+//        }
+//    }
+
+    fun scaleBitmapToCanvas(bitmap: Bitmap, size: Int = 1024): Bitmap {
+        return bitmap.scale(size, size)
+    }
+
     // converts current strokes to a bitmap and returns
     fun getStrokesAsBitmap(): Bitmap {
         val bitmap = createBitmap(size, size)
@@ -135,7 +154,7 @@ class DrawingImage(size: Int = 1024) {
     fun convertBitmapToStrokes(bitmap: Bitmap): DrawingImage {
         val newImage = DrawingImage(1024)
         // increase step as needed to improve performance
-        val step = 2
+        val step = 5
         for (y in 0 until bitmap.height step step) {
             for (x in 0 until bitmap.width step step) {
                 val color = bitmap.getPixel(x, y)

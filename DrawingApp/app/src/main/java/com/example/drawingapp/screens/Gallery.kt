@@ -50,9 +50,12 @@ fun Gallery(navController: NavController, viewModel: DrawingAppViewModel) {
             val inputStream = context.contentResolver.openInputStream(it)
             val bitmap = BitmapFactory.decodeStream(inputStream)
             inputStream?.close()
-            var newImage = DrawingImage(1024)
-            newImage = newImage.convertBitmapToStrokes(bitmap)
-            viewModel.addDrawing(newImage)
+
+            bitmap?.let { bmp ->
+                val newImage = DrawingImage(1024)
+                newImage.setBitmap(bitmap)
+                viewModel.addDrawing(newImage)
+            }
         }
     }
 
