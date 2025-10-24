@@ -12,6 +12,7 @@ import com.example.drawingapp.data.DrawingDataSource
 import com.example.drawingapp.data.DrawingRepository
 import com.example.drawingapp.model.DrawingImage
 import com.example.drawingapp.screens.DrawingCanvas
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -25,7 +26,8 @@ enum class BrushType() {
 }
 
 class DrawingAppViewModel(
-    private val repository: DrawingDataSource
+    private val repository: DrawingDataSource,
+    private val bg: CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
 
     // Public gallery list
@@ -55,13 +57,16 @@ class DrawingAppViewModel(
     val selectedBrushType: StateFlow<BrushType> = _selectedBrushType
 
     init {
-        // Collect repository stream with IDs and split it into two flows
         drawings = repository.allDrawingsWithIds
             .map { pairs ->
                 _ids.value = pairs.map { it.first }
                 pairs.map { it.second }
             }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.Eagerly,   // << was WhileSubscribed(5_000)
+                initialValue = emptyList()
+            )
     }
 
     // VM state updating
@@ -82,18 +87,16 @@ class DrawingAppViewModel(
         }
     }
 
-    fun insertActive() {
-        viewModelScope.launch(Dispatchers.IO) {
-            repository.insertDrawing(_activeDrawing.value.cloneDeep())
-            _activeDrawing.value = DrawingImage(1024)
-        }
+    fun insertActive() = viewModelScope.launch(bg) {
+        repository.insertDrawing(_activeDrawing.value.cloneDeep())
+        _activeDrawing.value = DrawingImage(1024)
     }
 
     fun updateActiveAt(index: Int) {
         val idList = ids.value
         if (index !in idList.indices) return
         val id = idList[index]
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(bg) {
             repository.updateDrawing(id, _activeDrawing.value.cloneDeep())
             _activeDrawing.value = DrawingImage(1024)
         }
@@ -102,22 +105,23 @@ class DrawingAppViewModel(
     fun deleteAt(index: Int) {
         val idList = ids.value
         if (index !in idList.indices) return
-        viewModelScope.launch(Dispatchers.IO) {
+
+        // shift selection synchronously first
+        _selected.value = _selected.value.mapNotNull {
+            when {
+                it == index -> null
+                it > index  -> it - 1
+                else        -> it
+            }
+        }.toSet()
+
+        viewModelScope.launch(bg) {
             repository.deleteDrawing(idList[index])
-            // shift selection indices locally
-            val oldSel = _selected.value
-            _selected.value = oldSel.mapNotNull {
-                when {
-                    it == index -> null
-                    it > index -> it - 1
-                    else -> it
-                }
-            }.toSet()
         }
     }
 
-    fun clearAll() {
-        viewModelScope.launch(Dispatchers.IO) { repository.deleteAllDrawings() }
+    fun clearAll() = viewModelScope.launch(bg) {
+        repository.deleteAllDrawings()
     }
 
     // share helper

@@ -6,12 +6,18 @@ import com.example.drawingapp.data.DrawingDataSource
 import org.junit.Assert.*
 import org.junit.Test
 import com.example.drawingapp.model.DrawingImage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
+import org.junit.After
+import org.junit.Before
 
 
 private class FakeDrawingRepository : DrawingDataSource {
@@ -52,32 +58,45 @@ private class FakeDrawingRepository : DrawingDataSource {
 @OptIn(ExperimentalCoroutinesApi::class)
 class GalleryViewModelTest {
 
+    private val dispatcher = StandardTestDispatcher()
+
+    @Before
+    fun setup() {
+        Dispatchers.setMain(dispatcher)
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
+
     @Test
     fun number_of_saved_pages_equals_gallery_pages() = runTest {
-        val vm = DrawingAppViewModel(FakeDrawingRepository())
+        val testBg = StandardTestDispatcher(testScheduler)    // <-- controlled
+        val vm = DrawingAppViewModel(FakeDrawingRepository(), testBg)
+
         repeat(5) {
             vm.startNewDrawing()
             vm.insertActive()
         }
-        advanceUntilIdle()
-        val list = vm.drawings.value
-        assertEquals("Should have 5 images", 5, list.size)
+        advanceUntilIdle()    // flush insert coroutines on testBg
+        assertEquals(5, vm.drawings.value.size)
     }
 
     @Test
     fun deleting_a_saved_image_reduces_count_by_one() = runTest {
-        val vm = DrawingAppViewModel(FakeDrawingRepository())
-        repeat(3) {
-            vm.startNewDrawing()
-            vm.insertActive()
-        }
+        val testBg = StandardTestDispatcher(testScheduler)
+        val vm = DrawingAppViewModel(FakeDrawingRepository(), testBg)
+
+        repeat(3) { vm.startNewDrawing(); vm.insertActive() }
         advanceUntilIdle()
+
         val before = vm.drawings.value.size
-        val removeIndex = 1
-        vm.deleteAt(removeIndex)
+        vm.deleteAt(1)
         advanceUntilIdle()
+
         val after = vm.drawings.value.size
-        assertEquals("Should have one less after deletion", before - 1, after)
+        assertEquals(before - 1, after)
     }
 
     @Test
