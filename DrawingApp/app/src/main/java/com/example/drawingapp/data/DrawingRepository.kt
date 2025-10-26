@@ -79,21 +79,13 @@ class DrawingRepository private constructor(context: Context) : DrawingDataSourc
 
     // Helper methods to convert between entity and model
     private fun convertToEntity(drawingImage: DrawingImage, id: Long = 0): DrawingEntity {
-        return DrawingEntity(
-            id = id,
-            strokes = drawingImage.strokeList(),
-            size = drawingImage.size,
-            timestamp = System.currentTimeMillis()
-        )
+        return DrawingEntity(id, drawingImage.getBitmap())
     }
 
     private fun convertToDrawingImage(entity: DrawingEntity): DrawingImage {
-        val img = DrawingImage(entity.size)
-        for (stroke in entity.strokes) {
-            img.addStroke(stroke)
-        }
-        img.save()
-        return img
+        val tmpImg = DrawingImage(1024)
+        tmpImg.setBitmap(entity.bitmap)
+        return tmpImg
     }
 
     companion object {

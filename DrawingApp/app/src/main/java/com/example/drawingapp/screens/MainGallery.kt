@@ -23,6 +23,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
@@ -163,28 +165,11 @@ private fun PhotoTile(drawing: DrawingImage) {
     ) {
         val tileW = size.width
         val tileH = size.height
-        val scaleX = tileW / drawing.size.toFloat()
-        val scaleY = tileH / drawing.size.toFloat()
-
-        val strokes = drawing.strokeList()
-        strokes.forEach { stroke ->
-            val color = Color(
-                red = android.graphics.Color.red(stroke.argb) / 255f,
-                green = android.graphics.Color.green(stroke.argb) / 255f,
-                blue = android.graphics.Color.blue(stroke.argb) / 255f,
-                alpha = android.graphics.Color.alpha(stroke.argb) / 255f
-            )
-
-            for (i in 0 until stroke.points.size - 1) {
-                val s = stroke.points[i]
-                val e = stroke.points[i + 1]
-                drawLine(
-                    color = color,
-                    start = androidx.compose.ui.geometry.Offset(s.x * scaleX, s.y * scaleY),
-                    end = androidx.compose.ui.geometry.Offset(e.x * scaleX, e.y * scaleY),
-                    strokeWidth = stroke.width * ((scaleX + scaleY) / 2f),
-                    cap = StrokeCap.Round
-                )
+        drawIntoCanvas { canvas ->
+            drawing.getBitmap().let { bmp ->
+                val nativeCanvas = canvas.nativeCanvas
+                val destRect = android.graphics.Rect(0, 0, tileW.toInt(), tileH.toInt())
+                nativeCanvas.drawBitmap(bmp, null, destRect, null)
             }
         }
     }

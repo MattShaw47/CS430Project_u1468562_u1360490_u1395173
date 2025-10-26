@@ -6,7 +6,14 @@ import com.example.drawingapp.model.DrawingImage
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import kotlin.intArrayOf
 
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [28])
 class DrawingBehaviorTest {
 
     @Test

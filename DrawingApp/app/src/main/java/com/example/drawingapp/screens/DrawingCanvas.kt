@@ -17,12 +17,10 @@ import androidx.navigation.NavController
 import com.example.drawingapp.BrushType
 import com.example.drawingapp.DrawingAppViewModel
 import com.example.drawingapp.model.Point
-import com.example.drawingapp.model.Stroke
 import com.example.drawingapp.ui.components.ColorPickerDialog
 import com.example.drawingapp.ui.components.ShapePickerDialog
 import com.example.drawingapp.ui.components.SizeSliderDialog
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.graphics.drawscope.draw
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import kotlin.math.*
@@ -102,7 +100,6 @@ fun DrawingCanvas(
             (c.green * 255).toInt(),
             (c.blue * 255).toInt()
         )
-
 
     // Force recomposition when strokes change
     var redrawTrigger by remember { mutableIntStateOf(0) }
@@ -235,16 +232,19 @@ fun DrawingCanvas(
                                 }
                             },
                             onDragEnd = {
-                                val pts = currentStroke.toList()
-                                if (pts.size >= 2) {
-                                    drawingImage.addStroke(
-                                        Stroke(
-                                            points = pts,
-                                            width = currentBrushSize,
-                                            argb = colorToArgbInt(currentColor)
-                                        )
-                                    )
+                                // scale factor for canvas size as bitmap px size is not 1:1
+                                val scaleX = drawingImage.getBitmap().width.toFloat() / size.width
+                                val scaleY = drawingImage.getBitmap().height.toFloat() / size.height
+                                val scaledPts = currentStroke.map { pt ->
+                                    Point(pt.x * scaleX, pt.y * scaleY)
                                 }
+
+                                drawingImage.updateBitmap(
+                                    scaledPts,
+                                    colorToArgbInt(currentColor),
+                                    currentBrushSize * min(scaleX, scaleY)
+                                )
+
                                 currentStroke.clear()
                                 dragStart = null
                                 dragCurrent = null
@@ -253,55 +253,30 @@ fun DrawingCanvas(
                         )
                     }
             ) {
-                // draw the bitmap if existing
-                if (drawingImage.importedBitmap != null) {
-                    drawIntoCanvas { canvas ->
-                        drawingImage.importedBitmap?.let { bmp ->
-                            val nativeCanvas = canvas.nativeCanvas
-                            val destRect = android.graphics.Rect(0, 0, size.width.toInt(), size.height.toInt())
-                            nativeCanvas.drawBitmap(bmp, null, destRect, null)
-                        }
+                drawIntoCanvas { canvas ->
+                    drawingImage.getBitmap().let { bmp ->
+                        val nativeCanvas = canvas.nativeCanvas
+                        val destRect = android.graphics.Rect(0, 0, size.width.toInt(), size.height.toInt())
+                        nativeCanvas.drawBitmap(bmp, null, destRect, null)
                     }
                 }
 
-                // Draw all saved strokes
-                val __rt = redrawTrigger
-                val strokes = drawingImage.strokeList()
+                // TODO >> strokeScale is not accurate as of now. Only gets average scale factor.
+                // fix may be to just draw the current stroke with the same scale factor and have them 'seem' consistent
+                val scaleX = drawingImage.getBitmap().width.toFloat() / size.width
+                val scaleY = drawingImage.getBitmap().height.toFloat() / size.height
+                val strokeScale = (scaleX + scaleY) / 2f
 
-                strokes.forEach { stroke ->
-                    // Convert ARGB Int back to Color
-                    val strokeColor = Color(
-                        red = android.graphics.Color.red(stroke.argb) / 255f,
-                        green = android.graphics.Color.green(stroke.argb) / 255f,
-                        blue = android.graphics.Color.blue(stroke.argb) / 255f,
-                        alpha = android.graphics.Color.alpha(stroke.argb) / 255f
-                    )
-
-                    for (i in 0 until stroke.points.size - 1) {
-                        val start = stroke.points[i]
-                        val end = stroke.points[i + 1]
-
-                        drawLine(
-                            color = strokeColor,
-                            start = Offset(start.x, start.y),
-                            end = Offset(end.x, end.y),
-                            strokeWidth = stroke.width,
-                            cap = StrokeCap.Round
-                        )
-                    }
-                }
-
-                // Draw current stroke being drawn
+                // Draw current stroke
                 if (currentStroke.size >= 2) {
                     for (i in 0 until currentStroke.size - 1) {
                         val start = currentStroke[i]
                         val end = currentStroke[i + 1]
-
                         drawLine(
                             color = currentColor,
                             start = Offset(start.x, start.y),
                             end = Offset(end.x, end.y),
-                            strokeWidth = currentBrushSize,
+                            strokeWidth = currentBrushSize * strokeScale,
                             cap = StrokeCap.Round
                         )
                     }

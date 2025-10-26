@@ -5,11 +5,17 @@ import com.example.drawingapp.model.Point
 import com.example.drawingapp.model.Stroke
 import org.junit.Test
 import org.junit.Assert.*
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import kotlin.intArrayOf
 
 /**
  * Tests for shape selection functionality
  * Verifies that shape selection allows for new shapes to be created
  */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [28])
 class ShapeSelectionTest {
 
     @Test

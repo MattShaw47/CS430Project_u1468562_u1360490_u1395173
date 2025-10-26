@@ -4,10 +4,16 @@ import com.example.drawingapp.data.UserSettings
 import org.junit.Test
 import org.junit.Assert.*
 import org.junit.Before
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import kotlin.intArrayOf
 
 /**
  * Unit tests for Settings functionality
  */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [28])
 class SettingsTest {
 
     private lateinit var userSettings: UserSettings

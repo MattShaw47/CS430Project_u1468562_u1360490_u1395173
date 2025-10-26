@@ -3,11 +3,17 @@ package com.example.drawingapp
 import androidx.compose.ui.graphics.Color
 import org.junit.Test
 import org.junit.Assert.*
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import kotlin.intArrayOf
 
 /**
  * Tests for color picker functionality
  * Verifies that selecting a color changes the pen state
  */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [28])
 class ColorPickerTest {
 
     @Test

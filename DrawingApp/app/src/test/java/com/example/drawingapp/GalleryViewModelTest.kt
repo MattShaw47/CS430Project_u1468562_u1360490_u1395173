@@ -18,8 +18,14 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Before
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import kotlin.intArrayOf
 
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [28])
 private class FakeDrawingRepository : DrawingDataSource {
     private val counter = AtomicLong(0L)
     private val store = mutableListOf<Pair<Long, DrawingImage>>()
@@ -27,6 +33,11 @@ private class FakeDrawingRepository : DrawingDataSource {
 
     override suspend fun insertDrawing(drawingImage: DrawingImage): Long {
         val id = counter.incrementAndGet()
+
+        if (drawingImage.getBitmap() == null) {
+            drawingImage.setBitmap(Bitmap.createBitmap(drawingImage.size, drawingImage.size, Bitmap.Config.ARGB_8888))
+        }
+
         store.add(id to drawingImage.cloneDeep())
         allDrawingsWithIds.update { store.toList() }
         return id

@@ -4,10 +4,8 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
-import android.graphics.Rect
 import java.util.ArrayDeque
 import androidx.core.graphics.createBitmap
-import androidx.core.graphics.get
 import androidx.core.graphics.scale
 
 data class Point(val x: Float, val y: Float)
@@ -27,10 +25,15 @@ class DrawingImage(size: Int = 1024) {
     var size: Int = size
         private set
 
+    // TODO >> may be able to get rid of strokes entirely as a persistent image.
+    // Only used to get as a current stroke value onDrag in the canvas before updating the bitmap
+    // ... would still be useful for history storage, but will need to update bitmap on button click.
+    // very doable.
     private val strokes = mutableListOf<Stroke>()
-    var importedBitmap: Bitmap? = null
 
-    private data class Snapshot(val size: Int, val strokes: List<Stroke>)
+    private var bitmap: Bitmap = createBitmap(size, size, Bitmap.Config.ARGB_8888)
+
+    private data class Snapshot(val size: Int, val strokes: List<Stroke>, val bitmap: Bitmap)
 
     private fun <T> ArrayDeque<T>.popLastOrNull(): T? =
         if (this.isEmpty()) null else this.removeLast()
@@ -52,10 +55,41 @@ class DrawingImage(size: Int = 1024) {
         bumpVersion()
     }
 
-    fun setBitmap(bitmap: Bitmap?) {
-        if (bitmap != null)
-            importedBitmap = bitmap
+    /**
+     * Draws a list of points on our bitmap with color and width properties.
+     */
+    fun updateBitmap(points: List<Point>, color: Int, width: Float) {
+        if (points.size < 2) return
+
+        val canvas = Canvas(bitmap)
+        val paint = Paint().apply {
+            this.color = color
+            this.strokeWidth = width
+            this.style = Paint.Style.STROKE
+            this.strokeCap = Paint.Cap.ROUND
+            this.isAntiAlias = true
+        }
+
+        for (i in 0 until points.size - 1) {
+            val start = points[i]
+            val end = points[i + 1]
+            canvas.drawLine(
+                start.x,
+                start.y,
+                end.x,
+                end.y,
+                paint
+            )
+        }
+
+        bumpVersion()
     }
+
+    fun setBitmap(bitmap: Bitmap) {
+        this.bitmap = bitmap
+    }
+
+    fun getBitmap(): Bitmap = bitmap
 
     fun eraseStrokeById(id: Long) {
         record()
@@ -106,65 +140,8 @@ class DrawingImage(size: Int = 1024) {
         val copy = DrawingImage(this.size)
         val snapshot = currentSnapshot()
         copy.restore((snapshot))
+        copy.setBitmap(snapshot.bitmap)
         return copy
-    }
-
-//    fun drawBitmap(canvas: Canvas) {
-//        importedBitmap?.let { bmp ->
-//            val destRect = Rect(0, 0, canvas.width, canvas.height)
-//            canvas.drawBitmap(bmp, null, destRect, null)
-//        }
-//    }
-
-    fun scaleBitmapToCanvas(bitmap: Bitmap, size: Int = 1024): Bitmap {
-        return bitmap.scale(size, size)
-    }
-
-    // converts current strokes to a bitmap and returns
-    fun getStrokesAsBitmap(): Bitmap {
-        val bitmap = createBitmap(size, size)
-        val canvas = Canvas(bitmap)
-        val paint = Paint().apply {
-            style = Paint.Style.STROKE
-            strokeCap = Paint.Cap.ROUND
-            isAntiAlias = true
-        }
-
-        for (stroke in strokeList()) {
-            if (stroke.points.isEmpty()) continue
-            paint.color = stroke.argb
-            paint.strokeWidth = stroke.width
-
-            val strokePath = Path().apply {
-                moveTo(stroke.points[0].x, stroke.points[0].y)
-                stroke.points.forEach { point ->
-                    lineTo(point.x, point.y)
-                }
-            }
-            canvas.drawPath(strokePath, paint)
-        }
-
-        return bitmap
-    }
-
-    /**
-     * Converts a bitmap to a valid stroke list and returns it as a DrawingImage
-     * @note - imported images will have no initial undo/restore history.
-     */
-    fun convertBitmapToStrokes(bitmap: Bitmap): DrawingImage {
-        val newImage = DrawingImage(1024)
-        // increase step as needed to improve performance
-        val step = 5
-        for (y in 0 until bitmap.height step step) {
-            for (x in 0 until bitmap.width step step) {
-                val color = bitmap.getPixel(x, y)
-                val point = Point(x.toFloat(), y.toFloat())
-                val stroke = Stroke(listOf(point), 1f, color)
-                newImage.addStroke(stroke)
-            }
-        }
-
-        return newImage
     }
 
     private fun record() {
@@ -179,11 +156,13 @@ class DrawingImage(size: Int = 1024) {
     private fun currentSnapshot(): Snapshot =
         Snapshot(
             size = size,
-            strokes = strokes.map { it.copy(points = it.points.map { p -> p.copy() }) })
+            strokes = strokes.map { it.copy(points = it.points.map { p -> p.copy() }) },
+            bitmap.copy(bitmap.config ?: Bitmap.Config.ARGB_8888, true))
 
     private fun restore(s: Snapshot) {
         size = s.size
         strokes.clear()
         strokes.addAll(s.strokes.map { it.copy(points = it.points.map { p -> p.copy() }) })
+        bitmap = s.bitmap.copy(s.bitmap.config ?: Bitmap.Config.ARGB_8888, true)
     }
 }

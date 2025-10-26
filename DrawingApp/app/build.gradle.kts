@@ -65,6 +65,8 @@ dependencies {
     // Room Database - Phase 2
     implementation("androidx.room:room-runtime:2.8.2")
     implementation("androidx.room:room-ktx:2.8.2")
+    implementation("androidx.xr.runtime:runtime:1.0.0-alpha07")
+    implementation(libs.androidx.room.ktx)
     ksp("androidx.room:room-compiler:2.8.2")
 
     // DataStore for Settings - Phase 2
@@ -79,6 +81,7 @@ dependencies {
     // Testing
     testImplementation(libs.junit)
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
+    testImplementation("org.robolectric:robolectric:4.13")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

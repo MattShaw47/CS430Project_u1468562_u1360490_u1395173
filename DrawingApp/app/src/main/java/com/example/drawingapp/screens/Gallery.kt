@@ -1,10 +1,7 @@
 package com.example.drawingapp.screens
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
-import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -24,18 +21,17 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.drawingapp.DrawingAppViewModel
 import com.example.drawingapp.model.DrawingImage
 import android.graphics.BitmapFactory
-import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 
 @Composable
 fun Gallery(navController: NavController, viewModel: DrawingAppViewModel) {
@@ -108,20 +104,6 @@ fun Gallery(navController: NavController, viewModel: DrawingAppViewModel) {
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalAlignment = Alignment.End
             ) {
-//                Text(
-//                    "${selected.size} selected",
-//                    modifier = Modifier.padding(end = 12.dp),
-//                    style = MaterialTheme.typography.bodyMedium
-//                )
-                Button(
-                    onClick = { shareSelectedImages(selected, drawings, context) },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Blue)
-                ) {
-                    Icon(Icons.Filled.Share, contentDescription = "Share selected")
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Share Selected")
-                }
-
                 Button(
                     onClick = {
                         selectedIndices.forEach { idx -> viewModel.deleteAt(idx) }
@@ -153,7 +135,6 @@ fun Gallery(navController: NavController, viewModel: DrawingAppViewModel) {
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)
             ) {
                 Text("Back to Main Menu")
-
             }
             Button(
                 onClick = { pickImageLauncher.launch("image/*") },
@@ -194,27 +175,12 @@ private fun GalleryCell(
                     .background(Color(0xFFEFEFEF))
                     .clickable { onToggleSelect() }
             ) {
-                val strokes = drawing.strokeList()
-                strokes.forEach { stroke ->
-                    val strokeColor = Color(
-                        red = android.graphics.Color.red(stroke.argb) / 255f,
-                        green = android.graphics.Color.green(stroke.argb) / 255f,
-                        blue = android.graphics.Color.blue(stroke.argb) / 255f,
-                        alpha = android.graphics.Color.alpha(stroke.argb) / 255f
-                    )
 
-                    for (i in 0 until stroke.points.size - 1) {
-                        val start = stroke.points[i]
-                        val end = stroke.points[i + 1]
-
-                        // TODO >> should not be a constant scaling factor
-                        drawLine(
-                            color = strokeColor,
-                            start = Offset(start.x / 3, start.y / 3),
-                            end = Offset(end.x / 3, end.y / 3),
-                            strokeWidth = stroke.width / 3,
-                            cap = StrokeCap.Round
-                        )
+                drawIntoCanvas { canvas ->
+                    drawing.getBitmap().let { bmp ->
+                        val nativeCanvas = canvas.nativeCanvas
+                        val destRect = android.graphics.Rect(0, 0, size.width.toInt(), size.height.toInt())
+                        nativeCanvas.drawBitmap(bmp, null, destRect, null)
                     }
                 }
             }
@@ -263,9 +229,9 @@ private fun GalleryCell(
 }
 
 private fun shareImage(viewModel: DrawingAppViewModel, drawing: DrawingImage, context: Context, imageID: Int) {
-    val drawingBmp = drawing.getStrokesAsBitmap()
-    viewModel.shareBitmap(drawingBmp)
-    val uri = viewModel.shareBitmap(drawingBmp)
+    val bitmap = drawing.getBitmap()
+    viewModel.shareBitmap(bitmap)
+    val uri = viewModel.shareBitmap(bitmap)
     uri?.let {
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
             type = "image/png"
@@ -273,16 +239,5 @@ private fun shareImage(viewModel: DrawingAppViewModel, drawing: DrawingImage, co
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         context.startActivity(Intent.createChooser(shareIntent, "Share Drawing"))
-    }
-}
-
-// TODO
-private fun shareSelectedImages(
-    imgIndices: Set<Int>,
-    drawings: List<DrawingImage>,
-    context: Context
-) {
-    val selectedImages = imgIndices.forEach { idx ->
-        drawings[idx]
     }
 }
