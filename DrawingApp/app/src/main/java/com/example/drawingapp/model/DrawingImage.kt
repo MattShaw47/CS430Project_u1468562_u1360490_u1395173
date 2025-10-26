@@ -3,10 +3,9 @@ package com.example.drawingapp.model
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
-import android.graphics.Path
 import java.util.ArrayDeque
-import androidx.core.graphics.createBitmap
 import androidx.core.graphics.scale
+import androidx.core.graphics.createBitmap
 
 data class Point(val x: Float, val y: Float)
 data class Stroke(
@@ -31,9 +30,9 @@ class DrawingImage(size: Int = 1024) {
     // very doable.
     private val strokes = mutableListOf<Stroke>()
 
-    private var bitmap: Bitmap = createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    private var bitmap: Bitmap? = null
 
-    private data class Snapshot(val size: Int, val strokes: List<Stroke>, val bitmap: Bitmap)
+    private data class Snapshot(val size: Int, val strokes: List<Stroke>, val bitmap: Bitmap?)
 
     private fun <T> ArrayDeque<T>.popLastOrNull(): T? =
         if (this.isEmpty()) null else this.removeLast()
@@ -61,7 +60,8 @@ class DrawingImage(size: Int = 1024) {
     fun updateBitmap(points: List<Point>, color: Int, width: Float) {
         if (points.size < 2) return
 
-        val canvas = Canvas(bitmap)
+        val bmp = ensureBitmap()
+        val canvas = Canvas(bmp)
         val paint = Paint().apply {
             this.color = color
             this.strokeWidth = width
@@ -86,10 +86,11 @@ class DrawingImage(size: Int = 1024) {
     }
 
     fun setBitmap(bitmap: Bitmap) {
-        this.bitmap = bitmap
+        val cfg = bitmap.config ?: Bitmap.Config.ARGB_8888
+        this.bitmap = bitmap.copy(cfg, true)
     }
 
-    fun getBitmap(): Bitmap = bitmap
+    fun getBitmap(): Bitmap = ensureBitmap()
 
     fun eraseStrokeById(id: Long) {
         record()
@@ -114,6 +115,12 @@ class DrawingImage(size: Int = 1024) {
             val st = strokes[i]
             strokes[i] = st.copy(points = st.points.map { p -> Point(p.x * s, p.y * s) })
         }
+
+        val bmp = bitmap
+        if (bmp != null && !bmp.isRecycled) {
+            bitmap = bmp.scale(newSize, newSize)
+        }
+
         size = newSize
         bumpVersion()
     }
@@ -138,10 +145,16 @@ class DrawingImage(size: Int = 1024) {
 
     fun cloneDeep(): DrawingImage {
         val copy = DrawingImage(this.size)
-        val snapshot = currentSnapshot()
-        copy.restore((snapshot))
-        copy.setBitmap(snapshot.bitmap)
+        val snap = currentSnapshot()
+        copy.restore(snap)
         return copy
+    }
+    private fun ensureBitmap(): Bitmap {
+        val b = bitmap
+        if (b != null && !b.isRecycled) return b
+        val fresh = createBitmap(size, size)
+        bitmap = fresh
+        return fresh
     }
 
     private fun record() {
@@ -153,16 +166,39 @@ class DrawingImage(size: Int = 1024) {
         version++
     }
 
-    private fun currentSnapshot(): Snapshot =
-        Snapshot(
+    private fun currentSnapshot(): Snapshot {
+        val bmp = bitmap
+        val bmpCopy =
+            if (bmp != null && !bmp.isRecycled) {
+                val cfg = bmp.config ?: Bitmap.Config.ARGB_8888
+                val copy = createBitmap(bmp.width, bmp.height, cfg)
+                Canvas(copy).drawBitmap(bmp, 0f, 0f, null)
+                copy
+            } else {
+                null
+            }
+
+        return Snapshot(
             size = size,
             strokes = strokes.map { it.copy(points = it.points.map { p -> p.copy() }) },
-            bitmap.copy(bitmap.config ?: Bitmap.Config.ARGB_8888, true))
+            bitmap = bmpCopy
+        )
+    }
 
     private fun restore(s: Snapshot) {
         size = s.size
         strokes.clear()
         strokes.addAll(s.strokes.map { it.copy(points = it.points.map { p -> p.copy() }) })
-        bitmap = s.bitmap.copy(s.bitmap.config ?: Bitmap.Config.ARGB_8888, true)
+
+        val src = s.bitmap
+        bitmap =
+            if (src != null && !src.isRecycled) {
+                val cfg = src.config ?: Bitmap.Config.ARGB_8888
+                val restored = createBitmap(src.width, src.height, cfg)
+                Canvas(restored).drawBitmap(src, 0f, 0f, null)
+                restored
+            } else {
+                null
+            }
     }
 }

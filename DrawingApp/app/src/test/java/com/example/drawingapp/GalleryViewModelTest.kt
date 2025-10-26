@@ -34,10 +34,6 @@ private class FakeDrawingRepository : DrawingDataSource {
     override suspend fun insertDrawing(drawingImage: DrawingImage): Long {
         val id = counter.incrementAndGet()
 
-        if (drawingImage.getBitmap() == null) {
-            drawingImage.setBitmap(Bitmap.createBitmap(drawingImage.size, drawingImage.size, Bitmap.Config.ARGB_8888))
-        }
-
         store.add(id to drawingImage.cloneDeep())
         allDrawingsWithIds.update { store.toList() }
         return id
@@ -83,14 +79,14 @@ class GalleryViewModelTest {
 
     @Test
     fun number_of_saved_pages_equals_gallery_pages() = runTest {
-        val testBg = StandardTestDispatcher(testScheduler)    // <-- controlled
+        val testBg = StandardTestDispatcher(testScheduler)
         val vm = DrawingAppViewModel(FakeDrawingRepository(), testBg)
 
         repeat(5) {
             vm.startNewDrawing()
             vm.insertActive()
         }
-        advanceUntilIdle()    // flush insert coroutines on testBg
+        advanceUntilIdle()
         assertEquals(5, vm.drawings.value.size)
     }
 
