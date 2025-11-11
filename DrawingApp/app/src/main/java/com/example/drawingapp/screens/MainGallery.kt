@@ -94,6 +94,15 @@ fun MainGallery(
                 ) { Text("Open Gallery") }
 
                 Spacer(Modifier.height(14.dp))
+
+                Button(
+                    onClick = { navController.navigate("analysisGallery") },
+                    modifier = Modifier
+                        .fillMaxWidth(0.62f)
+                        .heightIn(min = 52.dp)
+                ) { Text("Analyze Images") }
+
+                Spacer(Modifier.height(14.dp))
                 Button(
                     onClick = { navController.navigate("settings") },
                     modifier = Modifier

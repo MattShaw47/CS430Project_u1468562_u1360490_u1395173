@@ -3,11 +3,24 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     id("com.google.devtools.ksp") version "2.0.21-1.0.28"
+    alias(libs.plugins.kotlin.serialization)
 }
+
+// accessing the model API key
+val secretsFile = rootProject.file("secrets.properties")
+val secretsMap = secretsFile.readLines()
+    .map { it.split("=") }
+    .associate { it[0].trim() to it[1].trim() }
+
+val apiKey = secretsMap["VISION_API_KEY"] ?: ""
 
 android {
     namespace = "com.example.drawingapp"
     compileSdk = 36
+
+    buildFeatures {
+        buildConfig = true
+    }
 
     defaultConfig {
         applicationId = "com.example.drawingapp"
@@ -17,6 +30,7 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "VISION_API_KEY", "\"$apiKey\"")
     }
 
     buildTypes {
@@ -59,6 +73,16 @@ dependencies {
     implementation(libs.material3)
     implementation("androidx.compose.material:material-icons-extended:1.7.8")
 
+    // ktor client dependencies
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.cio) // or use .android instead
+    implementation(libs.ktor.client.android) // or use .android instead
+    implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.ktor.serialization.kotlinx.json)
+    implementation(libs.kotlinx.serialization.json)
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.5")
+
     // Coil for image loading
     implementation(libs.coil.compose)
 
@@ -67,6 +91,7 @@ dependencies {
     implementation("androidx.room:room-ktx:2.8.2")
     implementation("androidx.xr.runtime:runtime:1.0.0-alpha07")
     implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.espresso.core)
     ksp("androidx.room:room-compiler:2.8.2")
 
     // DataStore for Settings - Phase 2

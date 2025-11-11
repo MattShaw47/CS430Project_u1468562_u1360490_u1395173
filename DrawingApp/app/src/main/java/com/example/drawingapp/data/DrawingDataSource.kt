@@ -9,6 +9,7 @@ interface DrawingDataSource {
     val allDrawingsWithIds: Flow<List<Pair<Long, DrawingImage>>>
     suspend fun insertDrawing(drawingImage: DrawingImage): Long
     suspend fun updateDrawing(id: Long, drawingImage: DrawingImage)
+    suspend fun sendVisionRequest(imageBmp: Bitmap): VisionResponse
     suspend fun deleteDrawing(id: Long)
     suspend fun deleteAllDrawings()
     fun shareDrawing(bitmap: Bitmap): Uri?

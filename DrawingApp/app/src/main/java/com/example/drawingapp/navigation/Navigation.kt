@@ -5,8 +5,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.NavHostController
 import com.example.drawingapp.DrawingAppViewModel
+import com.example.drawingapp.screens.AnalysisGallery
 import com.example.drawingapp.screens.DrawingCanvas
 import com.example.drawingapp.screens.Gallery
+import com.example.drawingapp.screens.ImageAnalysis
 import com.example.drawingapp.screens.MainGallery
 import com.example.drawingapp.screens.Settings
 import com.example.drawingapp.screens.SplashScreen
@@ -47,6 +49,23 @@ fun AppNavHost(
 
         composable("gallery") {
             Gallery(navController, viewModel)
+        }
+
+        composable("analysisGallery") {
+            AnalysisGallery(navController, viewModel)
+        }
+
+        composable(
+            route = "analysisScreen/{index}",
+            arguments = listOf(
+                androidx.navigation.navArgument("index") {
+                    type = androidx.navigation.NavType.IntType
+                    nullable = false
+                }
+            )
+        ) { entry ->
+            val idx = requireNotNull(entry.arguments?.getInt("index"))
+            ImageAnalysis(viewModel, idx)
         }
 
         composable("settings") {

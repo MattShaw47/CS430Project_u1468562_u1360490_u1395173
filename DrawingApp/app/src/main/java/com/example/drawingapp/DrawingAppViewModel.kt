@@ -10,6 +10,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.room.util.copy
 import com.example.drawingapp.data.DrawingDataSource
 import com.example.drawingapp.data.DrawingRepository
+import com.example.drawingapp.data.VisionResponse
 import com.example.drawingapp.model.DrawingImage
 import com.example.drawingapp.screens.DrawingCanvas
 import kotlinx.coroutines.CoroutineDispatcher
@@ -32,6 +33,10 @@ class DrawingAppViewModel(
 
     // Public gallery list
     val drawings: StateFlow<List<DrawingImage>>
+
+    // holds the most recent google vision image analysis
+    private val _currentAnalysis = MutableStateFlow<VisionResponse?>(null)
+    val currentAnalysis: StateFlow<VisionResponse?> = _currentAnalysis
 
     // Parallel list of ids that aligns with drawings by index
     private val _ids = MutableStateFlow<List<Long>>(emptyList())
@@ -64,9 +69,19 @@ class DrawingAppViewModel(
             }
             .stateIn(
                 scope = viewModelScope,
-                started = SharingStarted.Eagerly,   // << was WhileSubscribed(5_000)
+                started = SharingStarted.Eagerly,
                 initialValue = emptyList()
             )
+    }
+
+    fun analyzeDrawing(drawing: Bitmap) {
+        viewModelScope.launch {
+            try {
+                _currentAnalysis.value = repository.sendVisionRequest(drawing)
+            } catch(e: Exception) {
+                _currentAnalysis.value = null
+            }
+        }
     }
 
     // VM state updating
