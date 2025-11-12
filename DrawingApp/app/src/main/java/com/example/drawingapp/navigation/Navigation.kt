@@ -65,7 +65,7 @@ fun AppNavHost(
             )
         ) { entry ->
             val idx = requireNotNull(entry.arguments?.getInt("index"))
-            ImageAnalysis(viewModel, idx)
+            ImageAnalysis(navController, viewModel, idx)
         }
 
         composable("settings") {
