@@ -29,6 +29,7 @@ fun ImageAnalysis(
     val drawings by viewModel.drawings.collectAsState()
     val currAnalysis by viewModel.currentAnalysis.collectAsState()
     var isLoading by remember { mutableStateOf(true) }
+    val errorMsg by viewModel.analysisError.collectAsState()
 
     val drawingBmp = drawings[index].getBitmap()
 
@@ -36,6 +37,11 @@ fun ImageAnalysis(
     LaunchedEffect(Unit) {
         isLoading = true
         viewModel.analyzeDrawing(drawingBmp)
+    }
+
+    // stop loading on error
+    LaunchedEffect(errorMsg) {
+        if (errorMsg != null) isLoading = false
     }
 
     // stop loading when we get results
@@ -143,6 +149,15 @@ fun ImageAnalysis(
                             "Analyzing image...",
                             color = Color.White,
                             style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+
+                    if (errorMsg != null) {
+                        Text(
+                            text = errorMsg!!,
+                            color = Color.Red,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(8.dp)
                         )
                     }
                 }

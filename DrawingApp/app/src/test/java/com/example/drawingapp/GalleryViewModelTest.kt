@@ -3,6 +3,7 @@ package com.example.drawingapp
 import android.graphics.Bitmap
 import android.net.Uri
 import com.example.drawingapp.data.DrawingDataSource
+import com.example.drawingapp.data.VisionResponse
 import org.junit.Assert.*
 import org.junit.Test
 import com.example.drawingapp.model.DrawingImage
@@ -45,6 +46,10 @@ private class FakeDrawingRepository : DrawingDataSource {
             store[idx] = id to drawingImage.cloneDeep()
             allDrawingsWithIds.update { store.toList() }
         }
+    }
+
+    override suspend fun sendVisionRequest(imageBmp: Bitmap): VisionResponse {
+        TODO("Not yet implemented")
     }
 
     override suspend fun deleteDrawing(id: Long) {

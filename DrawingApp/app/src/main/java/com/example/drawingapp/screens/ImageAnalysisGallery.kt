@@ -2,7 +2,6 @@ package com.example.drawingapp.screens
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,24 +17,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.SmartToy
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
-import androidx.compose.material3.FilledTonalIconButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -48,9 +37,7 @@ import com.example.drawingapp.model.DrawingImage
 
 @Composable
 fun AnalysisGallery(navController: NavController, viewModel: DrawingAppViewModel) {
-
     val drawings by viewModel.drawings.collectAsState()
-    var selectedIndex by remember { mutableIntStateOf(-1) }
 
     Column(Modifier.fillMaxSize()) {
         Box(Modifier.weight(1f)) {
@@ -72,17 +59,12 @@ fun AnalysisGallery(navController: NavController, viewModel: DrawingAppViewModel
                                 .fillMaxWidth()
                                 .height(180.dp)
                                 .clickable {
-                                    selectedIndex = index
-                                }
-                        ) {
-                            GalleryCell(
-                                drawing,
-                                isSelected = index == selectedIndex,
-                                onToggleSelect = { selectedIndex = index },
-                                onAnalyze = {
                                     navController.navigate("analysisScreen/$index")
                                 }
-                            )
+                        ) {
+                            GalleryCell(drawing = drawing) {
+                                navController.navigate("analysisScreen/$index")
+                            }
                         }
                     }
                 }
@@ -96,8 +78,7 @@ fun AnalysisGallery(navController: NavController, viewModel: DrawingAppViewModel
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
-        )
-        {
+        ) {
             Button(
                 onClick = { navController.popBackStack() },
                 modifier = Modifier
@@ -114,68 +95,34 @@ fun AnalysisGallery(navController: NavController, viewModel: DrawingAppViewModel
 @Composable
 private fun GalleryCell(
     drawing: DrawingImage,
-    isSelected: Boolean,
-    onToggleSelect: () -> Unit,
-    onAnalyze: () -> Unit,
+    onClick: () -> Unit
 ) {
     Surface(
-        tonalElevation = if (isSelected) 6.dp else 1.dp,
+        tonalElevation = 1.dp,
         shadowElevation = 2.dp,
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
-            .border(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else Color.LightGray)
     ) {
         Box(
-            Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center,
+            Modifier
+                .fillMaxSize()
+                .clickable { onClick() },
+            contentAlignment = Alignment.Center
         ) {
             Canvas(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color(0xFFEFEFEF))
-                    .clickable { onToggleSelect() }
+                    .clickable { onClick() }
             ) {
                 drawIntoCanvas { canvas ->
-                    drawing.getBitmap().let { bmp ->
-                        val nativeCanvas = canvas.nativeCanvas
-                        val destRect =
-                            android.graphics.Rect(0, 0, size.width.toInt(), size.height.toInt())
-                        nativeCanvas.drawBitmap(bmp, null, destRect, null)
-                    }
-                }
-            }
-
-            if (isSelected) {
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.10f))
-                )
-                AssistChip(
-                    onClick = onToggleSelect,
-                    label = { Text("Selected") },
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(8.dp)
-                )
-            }
-
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                FilledTonalIconButton(
-                    onClick = onAnalyze,
-                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.75f),
-                        // TODO >> change to different color?
-                        contentColor = MaterialTheme.colorScheme.primary
+                    val bmp = drawing.getBitmap()
+                    val nativeCanvas = canvas.nativeCanvas
+                    val destRect = android.graphics.Rect(
+                        0, 0, size.width.toInt(), size.height.toInt()
                     )
-                ) {
-                    Icon(Icons.Filled.SmartToy, contentDescription = "Analyze")
+                    nativeCanvas.drawBitmap(bmp, null, destRect, null)
                 }
             }
         }

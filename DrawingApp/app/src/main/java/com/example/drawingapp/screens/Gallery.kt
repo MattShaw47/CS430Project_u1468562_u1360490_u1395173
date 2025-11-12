@@ -52,6 +52,9 @@ fun Gallery(navController: NavController, viewModel: DrawingAppViewModel) {
                 newImage.setBitmap(bitmap)
                 viewModel.addDrawing(newImage)
             }
+
+            val newIndex = viewModel.drawings.value.lastIndex
+            navController.navigate("analysisScreen/$newIndex")
         }
     }
 

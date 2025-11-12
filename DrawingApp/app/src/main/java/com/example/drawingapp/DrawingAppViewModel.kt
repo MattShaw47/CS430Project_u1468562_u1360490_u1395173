@@ -61,6 +61,9 @@ class DrawingAppViewModel(
     private val _selectedBrushType = MutableStateFlow<BrushType>(BrushType.FREEHAND)
     val selectedBrushType: StateFlow<BrushType> = _selectedBrushType
 
+    private val _analysisError = MutableStateFlow<String?>(null)
+    val analysisError: StateFlow<String?> = _analysisError
+
     init {
         drawings = repository.allDrawingsWithIds
             .map { pairs ->
@@ -76,10 +79,14 @@ class DrawingAppViewModel(
 
     fun analyzeDrawing(drawing: Bitmap) {
         viewModelScope.launch {
+            _analysisError.value = null
+            _currentAnalysis.value = null
             try {
-                _currentAnalysis.value = repository.sendVisionRequest(drawing)
-            } catch(e: Exception) {
+                val resp = repository.sendVisionRequest(drawing)
+                _currentAnalysis.value = resp
+            } catch (e: Exception) {
                 _currentAnalysis.value = null
+                _analysisError.value = e.message ?: "Vision request failed"
             }
         }
     }

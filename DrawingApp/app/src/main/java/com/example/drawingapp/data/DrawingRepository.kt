@@ -45,15 +45,20 @@ data class VisionResponse(val responses: List<Response>? = null)
 @Serializable
 data class Response(
     @SerialName("localizedObjectAnnotations")
-    val localizedObjectAnnotations: List<LocalizedObjectAnnotation>? = null)
+    val localizedObjectAnnotations: List<LocalizedObjectAnnotation>? = null,
+    @SerialName("labelAnnotations")
+    val labelAnnotations: List<EntityAnnotation>? = null,
+    @SerialName("textAnnotations")
+    val textAnnotations: List<EntityAnnotation>? = null
+)
 
 @Serializable
 data class LocalizedObjectAnnotation(
-    val mid: String?,
-    val name: String?,
-    val score: Float?,
+    val mid: String? = null,
+    val name: String? = null,
+    val score: Float? = null,
     @SerialName("boundingPoly")
-    val boundingPoly: BoundingPoly?
+    val boundingPoly: BoundingPoly? = null
 )
 
 @Serializable
@@ -63,6 +68,12 @@ data class BoundingPoly(
 
 @Serializable
 data class NormalizedVertex(val x: Float?, val y: Float?)
+
+@Serializable
+data class EntityAnnotation(
+    val description: String? = null,
+    val score: Float? = null
+)
 
 // Repository pattern - single source of truth for drawing data
 class DrawingRepository private constructor(context: Context) : DrawingDataSource {
@@ -82,27 +93,17 @@ class DrawingRepository private constructor(context: Context) : DrawingDataSourc
      * response data to the UI.
      */
     override suspend fun sendVisionRequest(imageBmp: Bitmap): VisionResponse {
-        val emptyResponse: VisionResponse = VisionResponse(emptyList())
-        try {
-            val key = BuildConfig.VISION_API_KEY
-            val requestBody = getRequestBody(imageBmp)
+        val key = BuildConfig.VISION_API_KEY
+        val requestBody = getRequestBody(imageBmp)
 
-            val response: VisionResponse =
-                client.post("https://vision.googleapis.com/v1/images:annotate") {
-                    url {
-                        parameters.append("key", key)
-                    }
-                    contentType(ContentType.Application.Json)
-                    setBody(requestBody)
-                }.body<VisionResponse>()
+        val response: VisionResponse =
+            client.post("https://vision.googleapis.com/v1/images:annotate") {
+                url { parameters.append("key", key) }
+                contentType(ContentType.Application.Json)
+                setBody(requestBody)
+            }.body()
 
-            println("The response is: $response")
-            return response
-        } catch (e: Exception) {
-            // TODO >> better return statement / error handling here
-            println(e.toString())
-            return emptyResponse
-        }
+        return response
     }
 
     private fun getRequestBody(img: Bitmap): JsonObject {
@@ -115,11 +116,15 @@ class DrawingRepository private constructor(context: Context) : DrawingDataSourc
                     })
                     put("features", buildJsonArray {
                         add(buildJsonObject {
-//                            put("type", JsonPrimitive("OBJECT_LOCALIZATION"))
                             put("type", JsonPrimitive("OBJECT_LOCALIZATION"))
-
                             put("maxResults", JsonPrimitive(10))
-
+                        })
+                        add(buildJsonObject {
+                            put("type", JsonPrimitive("LABEL_DETECTION"))
+                            put("maxResults", JsonPrimitive(10))
+                        })
+                        add(buildJsonObject {
+                            put("type", JsonPrimitive("TEXT_DETECTION"))
                         })
                     })
                 })
