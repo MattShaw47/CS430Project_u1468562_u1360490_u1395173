@@ -194,7 +194,7 @@ fun ImageAnalysis(
                 }
             } else if (results == null || results.isEmpty()) {
                 Box(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxWidth().fillMaxHeight(0.5f),
                     contentAlignment = Alignment.Center
                 ) {
                     Text("No objects detected", color = Color.Gray)
