@@ -29,14 +29,19 @@ import com.example.drawingapp.DrawingAppViewModel
 import com.example.drawingapp.model.DrawingImage
 import android.graphics.BitmapFactory
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
+import com.example.drawingapp.screens.GalleryCell
 
 @Composable
 fun Gallery(navController: NavController, viewModel: DrawingAppViewModel) {
     val drawings by viewModel.drawings.collectAsState()
     val selected by viewModel.selected.collectAsState()
+    val ids by viewModel.ids.collectAsState()
+    val sharedIds by viewModel.sharedIds.collectAsState()
     val context = LocalContext.current
 
     val pickImageLauncher = rememberLauncherForActivityResult(
@@ -66,28 +71,35 @@ fun Gallery(navController: NavController, viewModel: DrawingAppViewModel) {
                 }
             } else {
                 LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = 140.dp),
+                    columns = GridCells.Adaptive(minSize = 180.dp),
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(12.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     itemsIndexed(drawings) { index, drawing ->
+                        val id = ids.getOrNull(index)
+                        val isShared = id != null && sharedIds.contains(id)
+
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(180.dp)
                         ) {
                             GalleryCell(
-                                drawing,
+                                drawing = drawing,
                                 index = index,
                                 isSelected = index in selected,
+                                isShared = isShared,
                                 onToggleSelect = { viewModel.toggleSelected(index) },
                                 onEdit = {
                                     viewModel.editDrawing(index)
                                     navController.navigate("drawingCanvas/$index")
                                 },
-                                onShare = { shareImage(viewModel, drawings[index], context, index) },
+                                onToggleCloudShare = { viewModel.toggleShare(index) },
+                                onShareExternal = {
+                                    shareImage(viewModel, drawings[index], context, index)
+                                },
                                 onDelete = { viewModel.deleteAt(index) }
                             )
                         }
@@ -151,13 +163,15 @@ fun Gallery(navController: NavController, viewModel: DrawingAppViewModel) {
 }
 
 @Composable
-private fun GalleryCell(
+fun GalleryCell(
     drawing: DrawingImage,
     index: Int,
     isSelected: Boolean,
+    isShared: Boolean,
     onToggleSelect: () -> Unit,
     onEdit: () -> Unit,
-    onShare: () -> Unit,
+    onToggleCloudShare: () -> Unit,
+    onShareExternal: () -> Unit,
     onDelete: () -> Unit
 ) {
     Surface(
@@ -205,18 +219,39 @@ private fun GalleryCell(
 
             Row(
                 modifier = Modifier
+                    .fillMaxWidth()
                     .align(Alignment.BottomEnd)
                     .padding(6.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.End
             ) {
-                FilledTonalIconButton(onClick = onShare) {
+                // Cloud share / unshare
+                FilledTonalIconButton(onClick = onToggleCloudShare) {
+                    if (isShared) {
+                        Icon(
+                            Icons.Filled.CloudDone,
+                            contentDescription = "Remove from cloud"
+                        )
+                    } else {
+                        Icon(
+                            Icons.Filled.CloudUpload,
+                            contentDescription = "Share to cloud"
+                        )
+                    }
+                }
+                Spacer(Modifier.width(4.dp))
+
+                // External share
+                FilledTonalIconButton(onClick = onShareExternal) {
                     Icon(Icons.Filled.Share, contentDescription = "Share")
                 }
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(4.dp))
+
                 FilledTonalIconButton(onClick = onEdit) {
                     Icon(Icons.Filled.Edit, contentDescription = "Edit")
                 }
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(4.dp))
+
                 FilledTonalIconButton(
                     onClick = onDelete,
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
@@ -233,7 +268,6 @@ private fun GalleryCell(
 
 private fun shareImage(viewModel: DrawingAppViewModel, drawing: DrawingImage, context: Context, imageID: Int) {
     val bitmap = drawing.getBitmap()
-    viewModel.shareBitmap(bitmap)
     val uri = viewModel.shareBitmap(bitmap)
     uri?.let {
         val shareIntent = Intent(Intent.ACTION_SEND).apply {

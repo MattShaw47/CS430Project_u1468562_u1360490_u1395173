@@ -8,16 +8,21 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.room.util.copy
+import com.example.drawingapp.data.CloudDrawingRepository
 import com.example.drawingapp.data.DrawingDataSource
 import com.example.drawingapp.data.DrawingRepository
 import com.example.drawingapp.data.VisionResponse
 import com.example.drawingapp.model.DrawingImage
 import com.example.drawingapp.screens.DrawingCanvas
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.WhileSubscribed
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -30,6 +35,13 @@ class DrawingAppViewModel(
     private val repository: DrawingDataSource,
     private val bg: CoroutineDispatcher = Dispatchers.IO
 ) : ViewModel() {
+
+
+    private val cloudRepo = CloudDrawingRepository()
+
+    // Set of local IDs that currently have a cloud copy
+    private val _sharedIds = MutableStateFlow<Set<Long>>(emptySet())
+    val sharedIds: StateFlow<Set<Long>> = _sharedIds
 
     // Public gallery list
     val drawings: StateFlow<List<DrawingImage>>
@@ -75,6 +87,39 @@ class DrawingAppViewModel(
                 started = SharingStarted.Eagerly,
                 initialValue = emptyList()
             )
+    }
+
+    fun refreshSharedIdsIfSignedIn() {
+        val user = Firebase.auth.currentUser ?: return
+        viewModelScope.launch(bg) {
+            try {
+                _sharedIds.value = cloudRepo.getSharedIds()
+            } catch (e: Exception) {
+                // TODO catch error
+            }
+        }
+    }
+
+    fun toggleShare(index: Int) {
+        val idList = ids.value
+        if (index !in idList.indices) return
+
+        val id = idList[index]
+        val drawing = drawings.value.getOrNull(index) ?: return
+        val user = Firebase.auth.currentUser ?: return
+
+        viewModelScope.launch(bg) {
+            try {
+                if (id in _sharedIds.value) {
+                    cloudRepo.unshareDrawing(id)
+                } else {
+                    cloudRepo.uploadDrawing(id, drawing)
+                }
+                _sharedIds.value = cloudRepo.getSharedIds()
+            } catch (e: Exception) {
+                // TODO catch errors
+            }
+        }
     }
 
     fun analyzeDrawing(drawing: Bitmap) {
@@ -128,6 +173,8 @@ class DrawingAppViewModel(
         val idList = ids.value
         if (index !in idList.indices) return
 
+        val id = idList[index]
+
         // shift selection synchronously first
         _selected.value = _selected.value.mapNotNull {
             when {
@@ -138,7 +185,16 @@ class DrawingAppViewModel(
         }.toSet()
 
         viewModelScope.launch(bg) {
-            repository.deleteDrawing(idList[index])
+            try {
+                // Attempt to remove cloud copy if user is signed in
+                cloudRepo.unshareDrawing(id)
+                _sharedIds.value = _sharedIds.value - id
+            } catch (e: Exception) {
+
+            }
+
+            // delete local
+            repository.deleteDrawing(id)
         }
     }
 

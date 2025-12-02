@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     id("com.google.devtools.ksp") version "2.0.21-1.0.28"
     alias(libs.plugins.kotlin.serialization)
+    id("com.google.gms.google-services") version "4.4.4" apply false
 }
 
 // accessing the model API key
@@ -115,4 +116,13 @@ dependencies {
     // Debug
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+
+    // Firebase – use the BOM and NO explicit versions
+    implementation(platform("com.google.firebase:firebase-bom:33.5.0"))
+
+    implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.google.firebase:firebase-firestore-ktx")
+
+
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
 }

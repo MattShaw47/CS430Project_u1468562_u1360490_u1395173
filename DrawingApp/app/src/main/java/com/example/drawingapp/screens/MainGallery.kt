@@ -15,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -31,6 +32,8 @@ import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
 import com.example.drawingapp.DrawingAppViewModel
 import com.example.drawingapp.model.DrawingImage
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
 import java.nio.file.Files.size
 
 @Composable
@@ -39,6 +42,13 @@ fun MainGallery(
     viewModel: DrawingAppViewModel
 ) {
     val drawings by viewModel.drawings.collectAsState()
+    val currentUser = Firebase.auth.currentUser
+
+    LaunchedEffect(currentUser?.uid) {
+        if (currentUser != null) {
+            viewModel.refreshSharedIdsIfSignedIn()
+        }
+    }
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize()) {

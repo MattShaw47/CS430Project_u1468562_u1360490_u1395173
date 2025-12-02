@@ -9,6 +9,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.drawingapp.data.SettingsDataStore
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
 import kotlinx.coroutines.launch
 
 @Composable
@@ -21,6 +23,9 @@ fun Settings(navController: NavController) {
 
     val scope = rememberCoroutineScope()
     var showAccountDialog by remember { mutableStateOf(false) }
+
+    val auth = Firebase.auth
+    val currentUser = auth.currentUser
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -40,29 +45,69 @@ fun Settings(navController: NavController) {
                 modifier = Modifier.fillMaxWidth(),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(16.dp)
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Cloud Backup", style = MaterialTheme.typography.bodyLarge)
+                    Text("User Account", style = MaterialTheme.typography.bodyLarge)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Show Firebase email, or not signed in
+                    val emailText = currentUser?.email ?: "Not signed in"
+                    Text(
+                        text = "Email: $emailText",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    if (userSettings.userAccountName.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            "Automatically backup your drawings to the cloud",
+                            text = "Display name: ${userSettings.userAccountName}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Switch(
-                        checked = userSettings.cloudBackupEnabled,
-                        onCheckedChange = { enabled ->
-                            scope.launch {
-                                settingsDataStore.updateCloudBackup(enabled)
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (currentUser == null) {
+                        Button(
+                            onClick = {
+                                navController.navigate("auth")
+                            }
+                        ) {
+                            Text("Sign in / Create account")
+                        }
+                    } else {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = { showAccountDialog = true },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Change display name")
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    auth.signOut()
+                                    // resets display name on sign out
+                                    scope.launch {
+                                        settingsDataStore.updateUserAccountName("")
+                                    }
+                                    navController.navigate("auth") {
+                                        popUpTo("mainMenu") { inclusive = true }
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Sign out")
                             }
                         }
-                    )
+                    }
                 }
             }
 

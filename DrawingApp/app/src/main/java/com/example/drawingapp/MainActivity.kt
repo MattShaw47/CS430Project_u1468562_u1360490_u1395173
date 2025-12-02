@@ -14,6 +14,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import com.example.drawingapp.navigation.AppNavHost
 import com.example.drawingapp.ui.theme.DrawingAppTheme
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -24,10 +26,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             DrawingAppTheme {
                 val myNavController = rememberNavController()
+                val startDestination = if (Firebase.auth.currentUser == null) "auth" else "splashScreen"
                 val drawingAppViewModel: DrawingAppViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                     factory = DrawingAppViewModelFactory(LocalContext.current)
                 )
-                AppNavHost(myNavController, drawingAppViewModel)
+                AppNavHost(myNavController, drawingAppViewModel, startDestination)
             }
         }
     }
