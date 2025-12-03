@@ -96,7 +96,7 @@ fun Gallery(navController: NavController, viewModel: DrawingAppViewModel) {
                                     viewModel.editDrawing(index)
                                     navController.navigate("drawingCanvas/$index")
                                 },
-                                onToggleCloudShare = { viewModel.toggleShare(index) },
+                                onToggleCloudShare = { viewModel.toggleShare(context, index) },
                                 onShareExternal = {
                                     shareImage(viewModel, drawings[index], context, index)
                                 },

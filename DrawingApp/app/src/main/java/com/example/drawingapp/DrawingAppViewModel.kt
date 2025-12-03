@@ -26,6 +26,9 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import android.widget.Toast
+import android.content.Context
+import kotlinx.coroutines.withContext
 
 enum class BrushType() {
     LINE, CIRCLE, RECTANGLE, FREEHAND
@@ -100,24 +103,35 @@ class DrawingAppViewModel(
         }
     }
 
-    fun toggleShare(index: Int) {
+    fun toggleShare(context: Context, index: Int) {
         val idList = ids.value
         if (index !in idList.indices) return
 
         val id = idList[index]
         val drawing = drawings.value.getOrNull(index) ?: return
-        val user = Firebase.auth.currentUser ?: return
+
+        // Make sure user is logged in
+        if (Firebase.auth.currentUser == null) return
 
         viewModelScope.launch(bg) {
             try {
                 if (id in _sharedIds.value) {
                     cloudRepo.unshareDrawing(id)
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Drawing removed from cloud", Toast.LENGTH_SHORT).show()
+                    }
                 } else {
                     cloudRepo.uploadDrawing(id, drawing)
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Upload successful!", Toast.LENGTH_SHORT).show()
+                    }
                 }
                 _sharedIds.value = cloudRepo.getSharedIds()
             } catch (e: Exception) {
-                // TODO catch errors
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Operation failed", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -179,8 +193,8 @@ class DrawingAppViewModel(
         _selected.value = _selected.value.mapNotNull {
             when {
                 it == index -> null
-                it > index  -> it - 1
-                else        -> it
+                it > index -> it - 1
+                else -> it
             }
         }.toSet()
 
@@ -207,12 +221,21 @@ class DrawingAppViewModel(
 
     // selection & brush props
     fun toggleSelected(index: Int) {
-        _selected.value = _selected.value.toMutableSet().also { if (!it.add(index)) it.remove(index) }
+        _selected.value =
+            _selected.value.toMutableSet().also { if (!it.add(index)) it.remove(index) }
     }
 
-    fun setColor(newColor: Color) { _selectedColor.value = newColor }
-    fun setSize(size: Float) { _selectedSize.value = size }
-    fun setShape(shape: BrushType) { _selectedBrushType.value = shape }
+    fun setColor(newColor: Color) {
+        _selectedColor.value = newColor
+    }
+
+    fun setSize(size: Float) {
+        _selectedSize.value = size
+    }
+
+    fun setShape(shape: BrushType) {
+        _selectedBrushType.value = shape
+    }
 
     fun resetPenProperties() {
         setColor(Color.Black); setSize(10F); setShape(BrushType.FREEHAND)
