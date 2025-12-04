@@ -3,7 +3,6 @@ package com.example.drawingapp.screens
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -19,11 +18,14 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import kotlinx.coroutines.delay
+import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
 
 @Composable
 fun SplashScreen(navController: NavController) {
     val TEAM_MEMBERS = listOf("Matt", "Mac", "Haiyang")
     val APP_NAME = "Drawing App"
+    val nextScreen: String = if (Firebase.auth.currentUser == null) "auth" else "mainMenu"
 
     var visible by remember { mutableStateOf(false) }
     val alpha by animateFloatAsState(
@@ -39,7 +41,7 @@ fun SplashScreen(navController: NavController) {
         visible = false
         // fade out time
         delay(400)
-        navController.navigate("mainMenu") {
+        navController.navigate(nextScreen) {
             popUpTo("splashScreen") { inclusive = true }
             launchSingleTop = true
         }

@@ -4,20 +4,10 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.runtime.MutableState
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import com.example.drawingapp.navigation.AppNavHost
 import com.example.drawingapp.ui.theme.DrawingAppTheme
-import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -26,11 +16,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             DrawingAppTheme {
                 val myNavController = rememberNavController()
-                val startDestination = if (Firebase.auth.currentUser == null) "auth" else "splashScreen"
                 val drawingAppViewModel: DrawingAppViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                     factory = DrawingAppViewModelFactory(LocalContext.current)
                 )
-                AppNavHost(myNavController, drawingAppViewModel, startDestination)
+                AppNavHost(myNavController, drawingAppViewModel, "splashScreen")
             }
         }
     }

@@ -1,5 +1,6 @@
 package com.example.drawingapp.screens
 
+import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -43,6 +44,11 @@ fun Gallery(navController: NavController, viewModel: DrawingAppViewModel) {
     val ids by viewModel.ids.collectAsState()
     val sharedIds by viewModel.sharedIds.collectAsState()
     val context = LocalContext.current
+    val cloudSelection by viewModel.cloudSelection.collectAsState()
+
+    var showConfirmDialog by remember { mutableStateOf(false) }
+    var showEmailDialog by remember { mutableStateOf(false) }
+    var indexForDialog by remember { mutableIntStateOf(-1) }
 
     val pickImageLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -71,7 +77,7 @@ fun Gallery(navController: NavController, viewModel: DrawingAppViewModel) {
                 }
             } else {
                 LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = 180.dp),
+                    columns = GridCells.Adaptive(minSize = 140.dp),
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(12.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -96,9 +102,13 @@ fun Gallery(navController: NavController, viewModel: DrawingAppViewModel) {
                                     viewModel.editDrawing(index)
                                     navController.navigate("drawingCanvas/$index")
                                 },
-                                onToggleCloudShare = { viewModel.toggleShare(context, index) },
+                                onToggleCloudShare = {
+                                    viewModel.toggleShare(context, index)
+                                    viewModel.getCloudImages(cloudSelection)
+                                },
                                 onShareExternal = {
-                                    shareImage(viewModel, drawings[index], context, index)
+                                    showConfirmDialog = true
+                                    indexForDialog = index
                                 },
                                 onDelete = { viewModel.deleteAt(index) }
                             )
@@ -106,6 +116,56 @@ fun Gallery(navController: NavController, viewModel: DrawingAppViewModel) {
                     }
                 }
             }
+        }
+
+        // shows the confirm dialog for sharing across user email
+        if (showConfirmDialog) {
+            ConfirmDialog(
+                onConfirm = {
+                    viewModel.getCloudImages(cloudSelection)
+                    showConfirmDialog = false
+                    showEmailDialog = true
+                },
+                onSkip = {
+                    shareImage(viewModel, drawings[indexForDialog], context, indexForDialog)
+                    showConfirmDialog = false
+                    indexForDialog = -1
+                },
+                onDismiss = {
+                    showConfirmDialog = false
+                    indexForDialog = -1
+                }
+            )
+        }
+
+        // displays email entry pane if confirmed alert pane
+        if (showEmailDialog && indexForDialog > -1) {
+            val isValidEmail by viewModel.isValidEmail.collectAsState()
+            var email by remember { mutableStateOf("") }
+
+            ShowEmailInputPane(
+                email,
+                onEmailChange = {
+                    email = it
+                    viewModel.validateEmail(email)
+                },
+                onConfirm = {
+                    if (isValidEmail == true) {
+                        viewModel.shareWithUser(
+                            context,
+                            drawings[indexForDialog],
+                            indexForDialog,
+                            email
+                        )
+                        showEmailDialog = false
+                    }
+                },
+                onDismiss = {
+                    showEmailDialog = false
+                    viewModel.resetIsValidEmail()
+                },
+                isValidEmail
+            )
         }
 
         // Bulk delete bar if multiple are selected
@@ -136,7 +196,7 @@ fun Gallery(navController: NavController, viewModel: DrawingAppViewModel) {
         }
 
         Spacer(Modifier.height(12.dp))
-        Row (
+        Row(
             Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -146,14 +206,18 @@ fun Gallery(navController: NavController, viewModel: DrawingAppViewModel) {
         {
             Button(
                 onClick = { navController.popBackStack() },
-                modifier = Modifier.weight(1f).padding(4.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(4.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)
             ) {
                 Text("Back to Main Menu")
             }
             Button(
                 onClick = { pickImageLauncher.launch("image/*") },
-                modifier = Modifier.weight(1f).padding(4.dp)
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(4.dp)
             ) {
                 Icon(Icons.Filled.Download, contentDescription = "Import image")
                 Text("Import Image")
@@ -196,7 +260,8 @@ fun GalleryCell(
                 drawIntoCanvas { canvas ->
                     drawing.getBitmap().let { bmp ->
                         val nativeCanvas = canvas.nativeCanvas
-                        val destRect = android.graphics.Rect(0, 0, size.width.toInt(), size.height.toInt())
+                        val destRect =
+                            android.graphics.Rect(0, 0, size.width.toInt(), size.height.toInt())
                         nativeCanvas.drawBitmap(bmp, null, destRect, null)
                     }
                 }
@@ -226,7 +291,10 @@ fun GalleryCell(
                 horizontalArrangement = Arrangement.End
             ) {
                 // Cloud share / unshare
-                FilledTonalIconButton(onClick = onToggleCloudShare) {
+                FilledTonalIconButton(
+                    onClick = onToggleCloudShare,
+                    modifier = Modifier.size(35.dp)
+                ) {
                     if (isShared) {
                         Icon(
                             Icons.Filled.CloudDone,
@@ -242,12 +310,12 @@ fun GalleryCell(
                 Spacer(Modifier.width(4.dp))
 
                 // External share
-                FilledTonalIconButton(onClick = onShareExternal) {
+                FilledTonalIconButton(onClick = onShareExternal, modifier = Modifier.size(35.dp)) {
                     Icon(Icons.Filled.Share, contentDescription = "Share")
                 }
                 Spacer(Modifier.width(4.dp))
 
-                FilledTonalIconButton(onClick = onEdit) {
+                FilledTonalIconButton(onClick = onEdit, modifier = Modifier.size(35.dp)) {
                     Icon(Icons.Filled.Edit, contentDescription = "Edit")
                 }
                 Spacer(Modifier.width(4.dp))
@@ -257,7 +325,8 @@ fun GalleryCell(
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
                         containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.75f),
                         contentColor = MaterialTheme.colorScheme.error
-                    )
+                    ),
+                    modifier = Modifier.size(35.dp)
                 ) {
                     Icon(Icons.Filled.Delete, contentDescription = "Delete")
                 }
@@ -266,7 +335,75 @@ fun GalleryCell(
     }
 }
 
-private fun shareImage(viewModel: DrawingAppViewModel, drawing: DrawingImage, context: Context, imageID: Int) {
+@Composable
+private fun ConfirmDialog(
+    onConfirm: () -> Unit,
+    onSkip: () -> Unit,
+    onDismiss: () -> Unit
+) {
+
+    AlertDialog(
+        onDismissRequest = { onDismiss },
+        text = { Text("Would you like to send this image to another user?") },
+        confirmButton = {
+            TextButton(onClick = onConfirm) { Text("CONFIRM") }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = onSkip) { Text("SKIP") }
+                TextButton(onClick = onDismiss) { Text("CANCEL") }
+            }
+        }
+    )
+}
+
+@Composable
+private fun ShowEmailInputPane(
+    email: String,
+    onEmailChange: (String) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    isValidEmail: Boolean?
+) {
+
+    var inputEmail by remember { mutableStateOf(email) }
+
+    AlertDialog(
+        onDismissRequest = {},
+        confirmButton = { TextButton(onClick = onConfirm) { Text("SUBMIT") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("CANCEL") } },
+        title = { Text("Enter User Email") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = inputEmail,
+                    onValueChange = { newValue ->
+                        inputEmail = newValue
+                        onEmailChange(newValue)
+                    },
+                    colors = if (isValidEmail == false) OutlinedTextFieldDefaults.colors(
+                        errorLabelColor = Color.Red
+                    ) else OutlinedTextFieldDefaults.colors(
+                        errorLabelColor = Color.Green
+                    )
+                )
+
+                if (isValidEmail == false) {
+                    Row(modifier = Modifier.padding(5.dp)) {
+                        Text(color = Color.Red, text = "Must enter a valid email...")
+                    }
+                }
+            }
+        }
+    )
+}
+
+private fun shareImage(
+    viewModel: DrawingAppViewModel,
+    drawing: DrawingImage,
+    context: Context,
+    imageID: Int
+) {
     val bitmap = drawing.getBitmap()
     val uri = viewModel.shareBitmap(bitmap)
     uri?.let {

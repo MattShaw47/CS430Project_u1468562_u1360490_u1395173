@@ -7,6 +7,7 @@ import androidx.navigation.NavHostController
 import com.example.drawingapp.DrawingAppViewModel
 import com.example.drawingapp.screens.AnalysisGallery
 import com.example.drawingapp.screens.AuthScreen
+import com.example.drawingapp.screens.CommunityGallery
 import com.example.drawingapp.screens.DrawingCanvas
 import com.example.drawingapp.screens.Gallery
 import com.example.drawingapp.screens.ImageAnalysis
@@ -23,7 +24,7 @@ fun AppNavHost(
     NavHost(navController = navController, startDestination = startDestination)
     {
         composable("auth") {
-            AuthScreen(navController = navController)
+            AuthScreen(navController = navController, viewModel)
         }
         composable("splashScreen") {
             SplashScreen(navController)
@@ -53,6 +54,10 @@ fun AppNavHost(
 
         composable("gallery") {
             Gallery(navController, viewModel)
+        }
+
+        composable("communityGallery") {
+            CommunityGallery(navController, viewModel)
         }
 
         composable("analysisGallery") {

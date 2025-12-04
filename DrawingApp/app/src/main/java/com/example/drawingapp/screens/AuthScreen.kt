@@ -13,10 +13,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.drawingapp.utils.AuthViewModel
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.collectAsState
+import com.example.drawingapp.DrawingAppViewModel
 
 @Composable
 fun AuthScreen(
     navController: NavController,
+    drawingAppViewModel: DrawingAppViewModel,
     authViewModel: AuthViewModel = viewModel()
 ) {
     val state = authViewModel.uiState
@@ -73,6 +76,9 @@ fun AuthScreen(
                             popUpTo("auth") { inclusive = true }
                         }
                     }
+
+                    // update cloud images for new user
+                    drawingAppViewModel.resetCloudDrawingsAndSelection()
                 },
                 enabled = !state.isLoading,
                 modifier = Modifier.fillMaxWidth()
@@ -89,6 +95,8 @@ fun AuthScreen(
                             popUpTo("auth") { inclusive = true }
                         }
                     }
+
+                    drawingAppViewModel.resetCloudDrawingsAndSelection()
                 },
                 enabled = !state.isLoading,
                 modifier = Modifier.fillMaxWidth()

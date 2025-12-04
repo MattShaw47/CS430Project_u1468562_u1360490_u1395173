@@ -1,43 +1,34 @@
 package com.example.drawingapp.data
 
 import android.content.Context
-import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
-import android.os.Build
-import androidx.compose.ui.platform.LocalContext
+import android.util.Base64
 import androidx.core.content.FileProvider
+import com.example.drawingapp.BuildConfig
 import com.example.drawingapp.model.DrawingImage
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
-import okhttp3.OkHttpClient
-import java.io.File
-import java.io.FileOutputStream
 import io.ktor.client.HttpClient
+import io.ktor.client.call.body
 import io.ktor.client.engine.android.Android
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.serialization.kotlinx.json.json
-import kotlinx.serialization.json.Json
-import com.example.drawingapp.BuildConfig
-import io.ktor.client.call.body
 import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
+import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import java.io.ByteArrayOutputStream
-import android.util.Base64
-import androidx.compose.ui.graphics.Vertices
-import io.ktor.client.request.request
-import io.ktor.client.request.setBody
-import io.ktor.client.statement.HttpResponse
-import io.ktor.client.statement.bodyAsText
-import io.ktor.http.ContentType
-import io.ktor.http.contentType
-import io.ktor.http.parameters
-import kotlinx.serialization.SerialName
+import java.io.File
+import java.io.FileOutputStream
 import kotlin.io.encoding.ExperimentalEncodingApi
-import kotlinx.serialization.json.JsonPrimitive
 
 @Serializable
 data class VisionResponse(val responses: List<Response>? = null)
