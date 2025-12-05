@@ -250,36 +250,3 @@ private fun BmpCell(
         }
     }
 }
-
-
-private fun isTopRegionDark(bitmap: Bitmap): Boolean {
-    val width = bitmap.width
-    val height = bitmap.height
-    if (width <= 0 || height <= 0) return false
-
-    val sampleHeight = minOf((height * 0.2f).toInt(), 40).coerceAtLeast(1)
-
-    var sumLuma = 0.0
-    var count = 0
-
-    val stepX = maxOf(width / 40, 1)
-    val stepY = maxOf(sampleHeight / 10, 1)
-
-    for (y in 0 until sampleHeight step stepY) {
-        for (x in 0 until width step stepX) {
-            val pixel = bitmap.getPixel(x, y)
-            val r = ((pixel shr 16) and 0xFF) / 255.0
-            val g = ((pixel shr 8) and 0xFF) / 255.0
-            val b = (pixel and 0xFF) / 255.0
-
-            // basic luminance
-            val luma = 0.299 * r + 0.587 * g + 0.114 * b
-            sumLuma += luma
-            count++
-        }
-    }
-
-    val avg = if (count > 0) sumLuma / count else 1.0
-    // treat "dark" as below midpoint so we use white text
-    return avg < 0.3
-}
