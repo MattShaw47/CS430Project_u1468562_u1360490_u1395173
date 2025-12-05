@@ -60,6 +60,11 @@ fun CommunityGallery(navController: NavController, viewModel: DrawingAppViewMode
     val options: List<String> = listOf<String>("saved", "shared", "received")
     val cloudSelection by viewModel.cloudSelection.collectAsState()
     val cloudImages = viewModel.displayedCloudDrawings.collectAsState().value
+    val receivedSenders by viewModel.receivedSenders.collectAsState()
+
+    androidx.compose.runtime.LaunchedEffect(cloudSelection) {
+        viewModel.getCloudImages(cloudSelection)
+    }
 
     Column(Modifier.fillMaxSize()) {
         DropDownOptions(
@@ -82,6 +87,10 @@ fun CommunityGallery(navController: NavController, viewModel: DrawingAppViewMode
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     itemsIndexed(cloudImages) { index, bmp ->
+                        val senderEmail =
+                            if (cloudSelection == "received") receivedSenders.getOrNull(index)
+                            else null
+
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -89,6 +98,7 @@ fun CommunityGallery(navController: NavController, viewModel: DrawingAppViewMode
                         ) {
                             BmpCell(
                                 bmp,
+                                senderEmail,
                                 onImport = {
                                     val newImage = DrawingImage(1024)
                                     newImage.setBitmap(bitmap = bmp)
@@ -181,6 +191,7 @@ fun DropDownOptions(
 @Composable
 private fun BmpCell(
     bitmap: Bitmap,
+    senderEmail: String? = null,
     onImport: () -> Unit
 ) {
     Surface(
@@ -195,6 +206,7 @@ private fun BmpCell(
                 .fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
+            // draw image
             Canvas(
                 modifier = Modifier
                     .fillMaxSize()
@@ -208,6 +220,18 @@ private fun BmpCell(
                     )
                     nativeCanvas.drawBitmap(bitmap, null, destRect, null)
                 }
+            }
+
+            // sender email at the top for received images
+            if (!senderEmail.isNullOrBlank()) {
+                Text(
+                    text = senderEmail,
+                    color = Color.Gray,
+                    fontSize = 12.sp,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(6.dp)
+                )
             }
 
             Row(
@@ -225,4 +249,37 @@ private fun BmpCell(
 
         }
     }
+}
+
+
+private fun isTopRegionDark(bitmap: Bitmap): Boolean {
+    val width = bitmap.width
+    val height = bitmap.height
+    if (width <= 0 || height <= 0) return false
+
+    val sampleHeight = minOf((height * 0.2f).toInt(), 40).coerceAtLeast(1)
+
+    var sumLuma = 0.0
+    var count = 0
+
+    val stepX = maxOf(width / 40, 1)
+    val stepY = maxOf(sampleHeight / 10, 1)
+
+    for (y in 0 until sampleHeight step stepY) {
+        for (x in 0 until width step stepX) {
+            val pixel = bitmap.getPixel(x, y)
+            val r = ((pixel shr 16) and 0xFF) / 255.0
+            val g = ((pixel shr 8) and 0xFF) / 255.0
+            val b = (pixel and 0xFF) / 255.0
+
+            // basic luminance
+            val luma = 0.299 * r + 0.587 * g + 0.114 * b
+            sumLuma += luma
+            count++
+        }
+    }
+
+    val avg = if (count > 0) sumLuma / count else 1.0
+    // treat "dark" as below midpoint so we use white text
+    return avg < 0.3
 }

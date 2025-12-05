@@ -53,6 +53,10 @@ class DrawingAppViewModel(
     private val _displayedCloudDrawings = MutableStateFlow<List<Bitmap>>(emptyList())
     val displayedCloudDrawings: StateFlow<List<Bitmap>> = _displayedCloudDrawings
 
+    // parallel list of sender emails for "received"
+    private val _receivedSenders = MutableStateFlow<List<String>>(emptyList())
+    val receivedSenders: StateFlow<List<String>> = _receivedSenders
+
     // holds the most recent google vision image analysis
     private val _currentAnalysis = MutableStateFlow<VisionResponse?>(null)
     val currentAnalysis: StateFlow<VisionResponse?> = _currentAnalysis
@@ -117,7 +121,14 @@ class DrawingAppViewModel(
      */
     fun getCloudImages(selectionType: String) {
         viewModelScope.launch(bg) {
-            _displayedCloudDrawings.value = cloudRepo.getImagesFromStorage(selectionType)
+            if (selectionType == "received") {
+                val (bitmaps, senders) = cloudRepo.getReceivedImagesWithSenders()
+                _displayedCloudDrawings.value = bitmaps
+                _receivedSenders.value = senders
+            } else {
+                _receivedSenders.value = emptyList()
+                _displayedCloudDrawings.value = cloudRepo.getImagesFromStorage(selectionType)
+            }
         }
     }
 
@@ -126,6 +137,7 @@ class DrawingAppViewModel(
      */
     fun resetCloudDrawingsAndSelection() {
         this._cloudSelection.value = "saved"
+        _receivedSenders.value = emptyList()
         getCloudImages("saved")
     }
 
