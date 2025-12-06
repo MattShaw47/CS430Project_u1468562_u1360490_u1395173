@@ -55,7 +55,8 @@ data class LocalizedObjectAnnotation(
 @Serializable
 data class BoundingPoly(
     @SerialName("normalizedVertices")
-    val normalizedVertices: List<NormalizedVertex>? = null)
+    val normalizedVertices: List<NormalizedVertex>? = null
+)
 
 @Serializable
 data class NormalizedVertex(val x: Float?, val y: Float?)
@@ -97,6 +98,9 @@ class DrawingRepository private constructor(context: Context) : DrawingDataSourc
         return response
     }
 
+    /**
+     * Generates the Google Vision request body.
+     */
     private fun getRequestBody(img: Bitmap): JsonObject {
         val imgAsBase64 = getBmpAsBase64(img)
         val body: JsonObject = buildJsonObject {
@@ -125,6 +129,9 @@ class DrawingRepository private constructor(context: Context) : DrawingDataSourc
         return body
     }
 
+    /**
+     * Converts bitmap into a b64 encoding.
+     */
     @OptIn(ExperimentalEncodingApi::class)
     private fun getBmpAsBase64(bmp: Bitmap): String {
         val outputStream = ByteArrayOutputStream()
@@ -136,11 +143,6 @@ class DrawingRepository private constructor(context: Context) : DrawingDataSourc
 
     private val drawingDao: DrawingDao = DrawingDatabase.getDatabase(context).drawingDao()
     private val appContext = context.applicationContext
-
-    // Get all drawings from database
-    val allDrawings: Flow<List<DrawingImage>> = drawingDao.getAllDrawings().map { entities ->
-        entities.map { entity -> convertToDrawingImage(entity) }
-    }
 
     override val allDrawingsWithIds: Flow<List<Pair<Long, DrawingImage>>> =
         drawingDao.getAllDrawings().map { entities ->
@@ -166,15 +168,6 @@ class DrawingRepository private constructor(context: Context) : DrawingDataSourc
 
     override suspend fun deleteAllDrawings() {
         drawingDao.deleteAllDrawings()
-    }
-
-    suspend fun getDrawingById(id: Long): DrawingImage? {
-        val entity = drawingDao.getDrawingById(id)
-        return if (entity != null) convertToDrawingImage(entity) else null
-    }
-
-    suspend fun getDrawingCount(): Int {
-        return drawingDao.getDrawingCount()
     }
 
     override fun shareDrawing(bitmap: Bitmap): Uri? {

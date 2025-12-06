@@ -11,9 +11,7 @@ class AuthRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
 ) {
 
-    val currentUser get() = auth.currentUser
     val currentUserEmail: String? get() = auth.currentUser?.email
-    val isSignedIn: Boolean get() = auth.currentUser != null
 
     /**
      * Signs up a new user with Firebase Authentication and stores the { uid : email } relationship
@@ -29,10 +27,16 @@ class AuthRepository(
         firestore.collection("users").document(uid).set(newUserData).await()
     }
 
+    /**
+     * Signs existing Firebase user into the system by checking for authentication.
+     */
     suspend fun signIn(email: String, password: String) {
         auth.signInWithEmailAndPassword(email.trim(), password).await()
     }
 
+    /**
+     * Signs the user out of the system.
+     */
     fun signOut() {
         auth.signOut()
     }

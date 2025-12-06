@@ -99,6 +99,7 @@ class DrawingAppViewModel(
     private val _isValidEmail = MutableStateFlow<Boolean?>(null)
     val isValidEmail: StateFlow<Boolean?> = _isValidEmail
 
+    // on initialization
     init {
         drawings = repository.allDrawingsWithIds
             .map { pairs ->
@@ -307,10 +308,6 @@ class DrawingAppViewModel(
             // delete local
             repository.deleteDrawing(id)
         }
-    }
-
-    fun clearAll() = viewModelScope.launch(bg) {
-        repository.deleteAllDrawings()
     }
 
     // share helper

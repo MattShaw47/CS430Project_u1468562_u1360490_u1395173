@@ -4,7 +4,6 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import java.util.ArrayDeque
-import androidx.core.graphics.scale
 import androidx.core.graphics.createBitmap
 
 data class Point(val x: Float, val y: Float)
@@ -24,10 +23,7 @@ class DrawingImage(size: Int = 1024) {
     var size: Int = size
         private set
 
-    // TODO >> may be able to get rid of strokes entirely as a persistent image.
     // Only used to get as a current stroke value onDrag in the canvas before updating the bitmap
-    // ... would still be useful for history storage, but will need to update bitmap on button click.
-    // very doable.
     private val strokes = mutableListOf<Stroke>()
 
     private var bitmap: Bitmap? = null
@@ -48,6 +44,9 @@ class DrawingImage(size: Int = 1024) {
         lastSavedVersion = version
     }
 
+    /**
+     * Adds stroke to our current stroke list.
+     */
     fun addStroke(stroke: Stroke) {
         record()
         strokes += stroke
@@ -60,6 +59,7 @@ class DrawingImage(size: Int = 1024) {
     fun updateBitmap(points: List<Point>, color: Int, width: Float) {
         if (points.size < 2) return
 
+        record()
         val bmp = ensureBitmap()
         val canvas = Canvas(bmp)
         val paint = Paint().apply {
@@ -85,6 +85,9 @@ class DrawingImage(size: Int = 1024) {
         bumpVersion()
     }
 
+    /**
+     * Sets the bitmap to passed in param.
+     */
     fun setBitmap(bitmap: Bitmap) {
         val cfg = bitmap.config ?: Bitmap.Config.ARGB_8888
         this.bitmap = bitmap.copy(cfg, true)
@@ -92,51 +95,34 @@ class DrawingImage(size: Int = 1024) {
 
     fun getBitmap(): Bitmap = ensureBitmap()
 
-    fun eraseStrokeById(id: Long) {
+    /**
+     * Resets bitmap to its initialized empty state and updates version history.
+     */
+    fun clearBmp() {
+        if (this.bitmap == null) return
         record()
-        strokes.removeAll { it.id == id }
+        val newBmp = createBitmap(size, size)
+        setBitmap(newBmp)
         bumpVersion()
     }
 
-    fun clear() {
-        if (strokes.isEmpty()) return
-        record()
-        strokes.clear()
-        bumpVersion()
-    }
-
-    fun scaleTo(newSize: Int) {
-        require(newSize > 0)
-        if (newSize == size) return
-
-        val s = newSize.toFloat() / size.toFloat()
-        record()
-        for (i in strokes.indices) {
-            val st = strokes[i]
-            strokes[i] = st.copy(points = st.points.map { p -> Point(p.x * s, p.y * s) })
-        }
-
-        val bmp = bitmap
-        if (bmp != null && !bmp.isRecycled) {
-            bitmap = bmp.scale(newSize, newSize)
-        }
-
-        size = newSize
-        bumpVersion()
-    }
-
+    /**
+     * Undoes the last changes made to the drawing.
+     */
     fun undo(): Boolean {
         val snap = undo.popLastOrNull() ?: return false
         redo.addLast(currentSnapshot())
         restore(snap); bumpVersion(); return true
     }
 
+    /**
+     * Resets the last 'undo' done to the drawing.
+     */
     fun redo(): Boolean {
         val snap = redo.popLastOrNull() ?: return false
         undo.addLast(currentSnapshot())
         restore(snap); bumpVersion(); return true
     }
-
 
     fun strokeList(): List<Stroke> = strokes.toList()
 
@@ -166,6 +152,9 @@ class DrawingImage(size: Int = 1024) {
         version++
     }
 
+    /**
+     * Gets the current state 'snapshot' of the drawing image to track history.
+     */
     private fun currentSnapshot(): Snapshot {
         val bmp = bitmap
         val bmpCopy =
@@ -185,6 +174,9 @@ class DrawingImage(size: Int = 1024) {
         )
     }
 
+    /**
+     * Restores a snapshot onto the current state of the image.
+     */
     private fun restore(s: Snapshot) {
         size = s.size
         strokes.clear()

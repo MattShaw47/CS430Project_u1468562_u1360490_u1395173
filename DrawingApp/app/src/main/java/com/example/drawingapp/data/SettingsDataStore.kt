@@ -1,5 +1,6 @@
 package com.example.drawingapp.data
 
+import android.annotation.SuppressLint
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
@@ -60,6 +61,7 @@ class SettingsDataStore(private val context: Context) {
     }
 
     companion object {
+        @SuppressLint("StaticFieldLeak")
         @Volatile
         private var INSTANCE: SettingsDataStore? = null
 

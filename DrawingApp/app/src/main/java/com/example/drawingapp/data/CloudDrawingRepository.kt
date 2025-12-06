@@ -5,7 +5,6 @@ import android.graphics.BitmapFactory
 import androidx.compose.ui.graphics.asImageBitmap
 import com.example.drawingapp.model.DrawingImage
 import com.google.firebase.auth.ktx.auth
-import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.storage.FirebaseStorage
@@ -36,11 +35,8 @@ class CloudDrawingRepository(
         db.collection("users").document(uid).collection("shared")
 
     /**
-     * Gets all received drawing UIDs for the passed in user.
+     * Gets all received images and their sharers for the current UID.
      */
-    private fun getReceivedDrawings(uid: String) =
-        db.collection("users").document(uid).collection("received")
-
     suspend fun getReceivedImagesWithSenders(): Pair<List<Bitmap>, List<String>> {
         if (Firebase.auth.currentUser == null) return emptyList<Bitmap>() to emptyList()
 

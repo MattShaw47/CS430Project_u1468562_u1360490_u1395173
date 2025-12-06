@@ -156,7 +156,7 @@ fun DrawingCanvas(
                     }
                 },
                 onClear = {
-                    drawingImage.clear()
+                    drawingImage.clearBmp()
                     redrawTrigger++
                 }
             )
@@ -253,6 +253,9 @@ fun DrawingCanvas(
                         )
                     }
             ) {
+                // variable to simply localize redraw trigger when clearing to recompose canvas [do not delete]
+                val observeTrigger = redrawTrigger
+
                 drawIntoCanvas { canvas ->
                     drawingImage.getBitmap().let { bmp ->
                         val nativeCanvas = canvas.nativeCanvas
@@ -261,8 +264,6 @@ fun DrawingCanvas(
                     }
                 }
 
-                // TODO >> strokeScale is not accurate as of now. Only gets average scale factor.
-                // fix may be to just draw the current stroke with the same scale factor and have them 'seem' consistent
                 val scaleX = drawingImage.getBitmap().width.toFloat() / size.width
                 val scaleY = drawingImage.getBitmap().height.toFloat() / size.height
                 val strokeScale = (scaleX + scaleY) / 2f

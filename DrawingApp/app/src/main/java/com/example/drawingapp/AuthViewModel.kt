@@ -33,6 +33,9 @@ class AuthViewModel(
         uiState = uiState.copy(password = password)
     }
 
+    /**
+     * Authenticates the current user in Firebase.
+     */
     fun signIn(onSuccess: () -> Unit) {
         viewModelScope.launch {
             uiState = uiState.copy(isLoading = true, errorMessage = null)
@@ -52,6 +55,9 @@ class AuthViewModel(
         }
     }
 
+    /**
+     * Creates new user in Firebase with { email : password }
+     */
     fun signUp(onSuccess: () -> Unit) {
         viewModelScope.launch {
             uiState = uiState.copy(isLoading = true, errorMessage = null)
