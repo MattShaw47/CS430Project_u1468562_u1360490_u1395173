@@ -12,7 +12,7 @@ class DrawingApp : Application() {
         if (FirebaseApp.getApps(this).isEmpty()) {
             val options = FirebaseOptions.Builder()
                 .setApplicationId("1:862182328364:android:0c40d658c970998075a989")
-                .setApiKey("AIzaSyAAxbwbdNxTVOkDK_n1gEBpIn3jnBmhdK0")
+                .setApiKey(BuildConfig.FIREBASE_API_KEY)
                 .setProjectId("drawingapp-e9cef")
                 .setStorageBucket("drawingapp-e9cef.firebasestorage.app")
                 .setGcmSenderId("862182328364")

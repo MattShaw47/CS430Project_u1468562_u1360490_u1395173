@@ -14,6 +14,7 @@ val secretsMap = secretsFile.readLines()
     .associate { it[0].trim() to it[1].trim() }
 
 val apiKey = secretsMap["VISION_API_KEY"] ?: ""
+val firebaseApiKey = secretsMap["FIREBASE_API_KEY"] ?: ""
 
 android {
     namespace = "com.example.drawingapp"
@@ -32,6 +33,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "VISION_API_KEY", "\"$apiKey\"")
+        buildConfigField("String", "FIREBASE_API_KEY", "\"$firebaseApiKey\"")
     }
 
     buildTypes {
